@@ -16,17 +16,18 @@
 /*Control*/
 #define Kx 0.25f
 #define Ky 0.25f
-#define VELOCITY_RATIO  10// Spinning mode's velocity ratio
-#define MAX_RPM 12000
+#define VELOCITY_RATIO 6 // Spinning mode's velocity ratio
+// #define MAX_RPM 12000
+#define MAX_RPM 5000
 
 /*Math calculation*/
 #define user_cos arm_cos_f32
 #define user_sin arm_sin_f32
 
 /*Spinning*/
-#define SPINNING_SPEED 300
-#define SPINNING_OMEGA 16
-#define SPINNING_B 450
+#define SPINNING_SPEED 200
+#define SPINNING_OMEGA 8
+#define SPINNING_B 200
 #define CAP_SPINNING_OMEGA 20
 #define CAP_SPINNING_B 400
 

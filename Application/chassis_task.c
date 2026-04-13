@@ -62,7 +62,7 @@ void Chassis_Init(void)
     PID_Init(&Chassis.Vy_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vr_Compensate, 50, 0, 0, 2.0, 0.0, 0.0, 0, 0, 0.3, 0.3, 0, OutputFilter | DerivativeFilter);
 
-    PID_Init(&Chassis.RotateFollow, 350, 0, 0, 5.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);    //航向PID
+    PID_Init(&Chassis.RotateFollow, 350, 0, 0, 10.0f, 0.0f, 0.5f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);    //航向PID
 
     /*Power control init*/
     Chassis.Spinning_direction = 1;
@@ -408,7 +408,7 @@ void Chassis_Set_Control(void)
     //     break;
 
     case Follow_Mode:
-        float rc_vr = remote_control.ch1 * Chassis.rcStickRotateRatio;
+        float rc_vr = -remote_control.ch1 * Chassis.rcStickRotateRatio;
         
         if (fabsf(rc_vr) > 5.0f) 
         {
@@ -466,87 +466,62 @@ void Chassis_Set_Control(void)
             Chassis.Mode = Follow_Mode;
         break;
 
-    case Spinning_Mode:
-    {  
-        static uint32_t spin_update_count = 0;
-        static float rand_amp = 112.0f; 
+        case Spinning_Mode:
+        {  
+            // srand(t);
+            // static float rand_amp;
+            // rand_amp = rand() % 25 + 100;
 
-        if (spin_update_count++ % 250 == 0)
-        {
-            rand_amp = rand() % 25 + 100;
+            // if (Power_Control.Is_Cap_On == TRUE)
+            //     Chassis.Vr = (int16_t)(CAP_SPINNING_B + rand_amp * user_sin(fabsf(CAP_SPINNING_OMEGA * user_cos(rand_amp)) * t));
+            // else
+            //     Chassis.Vr = (int16_t)(SPINNING_B + rand_amp * user_sin(fabsf(SPINNING_OMEGA * user_cos(rand_amp)) * t));
+
+            static uint32_t spin_update_count = 0;
+            static float target_rand_amp = 112.0f; 
+            static float smooth_rand_amp = 112.0f; 
+    
+            // 500ms
+            if (spin_update_count++ % 250 == 0)
+            {
+                target_rand_amp = rand() % 25 + 100;
+            }
+
+            smooth_rand_amp += (target_rand_amp - smooth_rand_amp) * 0.05f;
+    
+            if (Power_Control.Is_Cap_On == TRUE)
+                Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
+            else
+                Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
+    
+            if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) || 
+                (remote_control.key_code & Key_S) || (remote_control.key_code & Key_D) ||
+                (remote_control.ch1 != 0) || (remote_control.ch2 != 0) || 
+                (remote_control.ch3 != 0) || (remote_control.ch4 != 0))
+            {
+                Chassis.Vr = SPINNING_SPEED;
+            }
+            Chassis.Vr *= Chassis.Spinning_direction;
+    
+            // 坐标系反向投影 
+            Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
+    
+            float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx + 
+                                    user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
+                                    
+            float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx + 
+                                        user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
+    
+            Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, Chassis.Observed_Vx, target_vx_trans);
+            Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, Chassis.Observed_Vy, target_vy_trans);
+    
+            Chassis.VxTransfer *= 0.5f;
+            Chassis.VyTransfer *= 0.5f;
+    
+            Chassis.GravityCenter_Adjustment = 1.0f;
+            break;
         }
-
-        if (Power_Control.Is_Cap_On == TRUE)
-            Chassis.Vr = (int16_t)(CAP_SPINNING_B + rand_amp * user_sin(fabsf(CAP_SPINNING_OMEGA * user_cos(rand_amp)) * t));
-        else
-            Chassis.Vr = (int16_t)(SPINNING_B + rand_amp * user_sin(fabsf(SPINNING_OMEGA * user_cos(rand_amp)) * t));
-
-        if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) || 
-            (remote_control.key_code & Key_S) || (remote_control.key_code & Key_D) ||
-            (remote_control.ch1 != 0) || (remote_control.ch2 != 0) || 
-            (remote_control.ch3 != 0) || (remote_control.ch4 != 0))
-        {
-            Chassis.Vr = SPINNING_SPEED;
-        }
-        Chassis.Vr *= Chassis.Spinning_direction;
-
-
-        Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
-
-        float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx + 
-                                user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
-                                
-        float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx + 
-                                    user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
-
-        Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, Chassis.Observed_Vx, target_vx_trans);
-        Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, Chassis.Observed_Vy, target_vy_trans);
-
-        Chassis.VxTransfer *= 0.5f;
-        Chassis.VyTransfer *= 0.5f;
-
-        Chassis.GravityCenter_Adjustment = 1.0f;
-        break;
     }
-
-    case Target_Mode:
-        if (remote_control.ch2 < 0 && wait <= 0)
-        {
-            Chassis.Vr--;
-            wait = 5;
-        }
-        else if (remote_control.ch2 > 0 && wait <= 0)
-        {
-            Chassis.Vr++;
-            wait = 5;
-        }
-
-        if (Chassis.Vr > 400)
-        {
-            Chassis.Vr = 400;
-        }
-        if (Chassis.Vr < 0)
-        {
-            Chassis.Vr = 0;
-        }
-        wait--;
-
-        Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE + Chassis.Spinning_direction * 0) / RADIAN_COEF;
-        Chassis.VxTransfer = user_cos(Chassis.DeflectionAngle) * Chassis.Vx +
-                             user_sin(Chassis.DeflectionAngle) * Chassis.Vy +
-                             PID_Calculate(&Chassis.Vx_Compensate, Chassis.Observed_Vx, Chassis.VxTransfer);
-
-        Chassis.VyTransfer = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx +
-                             user_cos(Chassis.DeflectionAngle) * Chassis.Vy +
-                             PID_Calculate(&Chassis.Vy_Compensate, Chassis.Observed_Vy, Chassis.VyTransfer);
-
-        Chassis.VxTransfer *= 0.5f;
-        Chassis.VyTransfer *= 0.5f;
-
-        Chassis.GravityCenter_Adjustment = 1.0f;
-        break;
-    }
-
     // if (is_TOE_Error(GIMBAL_YAW_MOTOR_TOE)) // If Gimbal Yaw lost, Control Chassis
     //     Chassis.Vr = remote_control.ch1 * Chassis.rcStickRotateRatio + remote_control.mouse.x * Chassis.rcMouseRotateRatio;
 
