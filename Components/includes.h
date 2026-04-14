@@ -54,6 +54,8 @@
 #include "power_control.h"
 #include "cap.h"
 
+#include "chassis_fusion.h"
+
 extern uint32_t timeStamp[50];
 
 #endif

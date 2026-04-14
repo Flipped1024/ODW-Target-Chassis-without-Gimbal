@@ -1,29 +1,28 @@
 
 
-GraphedExpression="AHRS.Yaw", Color=#e56a6f, Show=0
-GraphedExpression="Chassis.ChassisMotor[0].Velocity_RPM", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#35792b, Show=0
-GraphedExpression="Chassis.ChassisMotor[1].Velocity_RPM", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#769dda, Show=0
-GraphedExpression="Chassis.ChassisMotor[2].Velocity_RPM", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#b14f0d, Show=0
-GraphedExpression="Chassis.ChassisMotor[3].Velocity_RPM", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#b3c38e
-GraphedExpression="Chassis.V1", Color=#ab7b05, Show=0
+GraphedExpression="AHRS.Yaw", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#e56a6f, Show=0
+GraphedExpression="Chassis.ChassisMotor[0].Velocity_RPM", Color=#35792b, Show=0
+GraphedExpression="Chassis.ChassisMotor[1].Velocity_RPM", Color=#769dda, Show=0
+GraphedExpression="Chassis.ChassisMotor[2].Velocity_RPM", Color=#b14f0d, Show=0
+GraphedExpression="Chassis.ChassisMotor[3].Velocity_RPM", Color=#b3c38e, Show=0
+GraphedExpression="Chassis.V1", Color=#ab7b05
 GraphedExpression="Chassis.V2", Color=#7fd3b7, Show=0
 GraphedExpression="Chassis.V3", Color=#50328f, Show=0
 GraphedExpression="Chassis.V4", Color=#c587a5, Show=0
-GraphedExpression="Chassis.Vr", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#999401, Show=0
-OpenDocument="main.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Src/main.c", Line=67
-OpenDocument="arm_mat_mult_f32.c", FilePath="C:/GitHub/ARM-software_CMSIS_5.DSPnew/CMSIS/DSP/Source/MatrixFunctions/arm_mat_mult_f32.c", Line=0
-OpenDocument="tasks.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Middlewares/Third_Party/FreeRTOS/Source/tasks.c", Line=3581
-OpenDocument="stm32f4xx_hal_spi.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c", Line=1223
-OpenDocument="chassis_task.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/chassis_task.c", Line=592
-OpenDocument="remote_control.h", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/remote_control.h", Line=27
-OpenDocument="stm32f4xx_hal.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c", Line=317
-OpenDocument="startup_stm32f407xx.s", FilePath="D:/RoboMaster/ODW-Chassis-2025/startup_stm32f407xx.s", Line=54
-OpenDocument="stm32f4xx_hal_can.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c", Line=1551
-OpenDocument="motor.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/motor.c", Line=50
-OpenDocument="detect_task.h", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/detect_task.h", Line=35
-OpenDocument="remote_control.c", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/remote_control.c", Line=45
-OpenDocument="motor.h", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/motor.h", Line=64
-OpenDocument="chassis_task.h", FilePath="D:/RoboMaster/ODW-Chassis-2025/Application/chassis_task.h", Line=66
+GraphedExpression="Chassis.Vr", Color=#999401, Show=0
+OpenDocument="main.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Src/main.c", Line=67
+OpenDocument="tasks.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Middlewares/Third_Party/FreeRTOS/Source/tasks.c", Line=3581
+OpenDocument="stm32f4xx_hal_spi.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c", Line=1223
+OpenDocument="chassis_task.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/chassis_task.c", Line=567
+OpenDocument="remote_control.h", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/remote_control.h", Line=27
+OpenDocument="stm32f4xx_hal.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c", Line=392
+OpenDocument="startup_stm32f407xx.s", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/startup_stm32f407xx.s", Line=54
+OpenDocument="stm32f4xx_hal_can.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c", Line=1551
+OpenDocument="motor.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/motor.c", Line=50
+OpenDocument="detect_task.h", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/detect_task.h", Line=35
+OpenDocument="remote_control.c", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/remote_control.c", Line=45
+OpenDocument="motor.h", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/motor.h", Line=64
+OpenDocument="chassis_task.h", FilePath="D:/RoboMaster/ODW-Target-Chassis-without-Gimbol/Application/chassis_task.h", Line=66
 OpenToolbar="Debug", Floating=0, x=0, y=0
 OpenWindow="Source Files", DockArea=LEFT, x=0, y=0, w=598, h=634, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Watched Data 1", DockArea=BOTTOM, x=1, y=0, w=1366, h=787, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
@@ -32,9 +31,9 @@ OpenWindow="Data Sampling", DockArea=BOTTOM, x=2, y=0, w=763, h=787, FilterBarSh
 OpenWindow="Timeline", DockArea=RIGHT, x=0, y=0, w=1281, h=634, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="5 s", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="836;0", DataGraphShowNamesAtCursor=0, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="1054;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="1070;0"
 OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=203, h=787, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
-TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[233;100;100;100;846]
+TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[233;100;100;100;982]
 TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" AHRS.Yaw";" Chassis.ChassisMotor[0].Velocity_RPM";" Chassis.ChassisMotor[1].Velocity_RPM";" Chassis.ChassisMotor[2].Velocity_RPM";" Chassis.ChassisMotor[3].Velocity_RPM";" Chassis.V1";" Chassis.V2";" Chassis.V3";" Chassis.V4";" Chassis.Vr"], ColWidths=[100;100;100;100;100;100;100;100;100;100;100;100]
-TableHeader="Data Sampling Setup", SortCol="Min. Change", SortOrder="DESCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[308;100;164;154;114;124;110;144;126]
+TableHeader="Data Sampling Setup", SortCol="Min. Change", SortOrder="DESCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[308;100;154;154;134;154;110;154;144]
 TableHeader="Power Sampling", SortCol="Index", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
 TableHeader="Task List", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Name";"Run Count";"Priority";"Status";"Timeout";"Stack Info";"ID";"Mutex Count";"Notified Value";"Notify State"], ColWidths=[110;110;110;110;110;110;110;110;110;110]
 TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[232;259;100;749]
@@ -44,7 +43,6 @@ WatchedExpression="Chassis", RefreshRate=2, Window=Watched Data 1
 WatchedExpression="bullet_speed", RefreshRate=1, Window=Watched Data 1
 WatchedExpression="shoot_data", RefreshRate=1, DisplayFormat=DISPLAY_FORMAT_DEC, Window=Watched Data 1
 WatchedExpression="robot_state", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="judgement_receive", RefreshRate=5, Window=Watched Data 1
 WatchedExpression="Gimbal", RefreshRate=1, Window=Watched Data 1
 WatchedExpression="remote_control", RefreshRate=5, Window=Watched Data 1
 WatchedExpression="RC_Data_Buf", RefreshRate=1, Window=Watched Data 1
@@ -53,6 +51,7 @@ WatchedExpression="Chassis_Measure_Power", RefreshRate=5, Window=Watched Data 1
 WatchedExpression="Scope_power_limit", Window=Watched Data 1
 WatchedExpression="Cap", RefreshRate=2, Window=Watched Data 1
 WatchedExpression="Power_Control", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="judgement_receive", RefreshRate=5, Window=Watched Data 1
 WatchedExpression="robot_command", RefreshRate=2, Window=Watched Data 1
 WatchedExpression="power_heat_data", RefreshRate=5, Window=Watched Data 1
 WatchedExpression="a1", Window=Watched Data 1

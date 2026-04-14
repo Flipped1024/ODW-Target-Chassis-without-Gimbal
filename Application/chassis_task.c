@@ -41,18 +41,7 @@ void Chassis_Init(void)
     for (uint8_t i = 0; i < 4; i++)
         Chassis.Attitude_adjustment[i] = 1.0f;
 
-    /*Findheading*/
-    // for (uint8_t i = 0; i < 4; i++)
-    // {
-    //     // Chassis.TotalTheta = (Gimbal.YawMotor.Total_angle - Gimbal.YawMotor.zero_offset) * ENCODERCOEF * YAW_REDUCTION_RATIO + i * YAW_REDUCTION_CORRECTION_ANGLE;
-    //     // Chassis.Theta = loop_float_constrain((Chassis.TotalTheta + Gimbal.YawMotor.Angle_offset * ENCODERCOEF * YAW_REDUCTION_RATIO), -180, 180);
-    // }
-
-    Chassis.TotalTheta = 0;
-    Chassis.Theta = 0;
-
-    /*PID Init*/
-    // PID_Velocity
+    /* PID Init */
     for (uint8_t i = 0; i < 4; i++)
     {
         PID_Init(&Chassis.ChassisMotor[i].PID_Velocity, 16384, 16384, 0, 15, 60, 0, 500, 100, 0.001, 0, 1, Integral_Limit | OutputFilter);
@@ -68,34 +57,31 @@ void Chassis_Init(void)
     Chassis.Spinning_direction = 1;
     Power_Control.Is_Cap_On = FALSE;
     Power_Control.Is_Cap_Used = TRUE;
+
+    initChassisFusion(&chassis_fusion);
+
+    /* 重置参数初始化 */
+    Chassis.yaw_offset_ = 0.0f; // 初始化软偏置为0
+    Chassis.TotalTheta = 0;
+    Chassis.Theta = 0;
+
+    /* 自动模式里程计与参数初始化 */
+    Chassis.displacement_x_ = 0.0f;
+    Chassis.displacement_y_ = 0.0f;
+    Chassis.traverse_target_distance_ = 1.5f; // 目标单侧横移 1.5 米 (可根据实际场地修改)
+    Chassis.traverse_direction_ = 1;          // 初始向右
 }
 
 void Chassis_Get_Theta(void)
 {
-    // /*Get the angle of Chassis and Gimbal*/
-    // Chassis.TotalTheta = (Gimbal.YawMotor.Total_angle - Gimbal.YawMotor.zero_offset) * ENCODERCOEF + Chassis.YawCorrectionScale * YAW_REDUCTION_CORRECTION_ANGLE;
-    // Chassis.Theta = loop_float_constrain((Chassis.TotalTheta + Gimbal.YawMotor.Angle_offset * ENCODERCOEF), -180, 180);
+    // 扣除偏航角软件偏置，实现无感重置车头
+    float temp_yaw_ = AHRS.Yaw - Chassis.yaw_offset_;
+    
+    // 约束到 -180 ~ +180
+    while (temp_yaw_ > 180.0f) temp_yaw_ -= 360.0f;
+    while (temp_yaw_ < -180.0f) temp_yaw_ += 360.0f;
 
-    // /*Finding head*/
-    // if (Chassis.Fly_Mode == TRUE)
-    // {
-    //     Chassis.HeadingFlag = 1; // 在飞坡模式下 选定最优利于飞坡的一面
-    //     Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE), -180, 180);
-    // }
-    // else
-    //     Find_heading_2heads_L();
-
-    // // When Gimbal is abnormal,reset the angle
-    // if (is_TOE_Error(GIMBAL_YAW_MOTOR_TOE))
-    // {
-    //     Chassis.TotalTheta = 0;
-    //     Chassis.Theta = 0;
-    // }
-
-    // Chassis.FollowTheta = float_deadband(Chassis.Theta, -0.005f, 0.005f);
-
-
-    Chassis.TotalTheta = AHRS.Yaw;
+    Chassis.TotalTheta = temp_yaw_;
     Chassis.Theta = Chassis.TotalTheta;
 
     Chassis.FollowTheta = Chassis.Theta;
@@ -105,14 +91,26 @@ void Chassis_Set_Mode(void)
 {
     static uint16_t LastKeyCode = 0;
     static uint16_t LastRightSwitch = 0;
-    static uint8_t num = 1;
+
+    // --- 核心修改：利用左拨杆瞬间重置车头正前方 ---
+    static uint8_t last_left_switch_ = 0;
+    if (remote_control.switch_left == Switch_Down && last_left_switch_ != Switch_Down)
+    {
+        // 将当前底盘真实姿态定义为新的0度
+        Chassis.yaw_offset_ = AHRS.Yaw; 
+        // 强制同步目标角，防止底盘突转
+        Chassis.Target_Yaw = 0.0f;      
+        
+        // 清除里程计
+        Chassis.displacement_x_ = 0.0f;
+        Chassis.displacement_y_ = 0.0f;
+    }
+    last_left_switch_ = remote_control.switch_left;
 
     /*Set mode by key_code*/
-    // Keep EF, Silence_Mode
     if ((remote_control.key_code & Key_E) && (remote_control.key_code & Key_F))
         Chassis.Mode = Silence_Mode;
 
-    // F, switch Spinning_Mode and Follow_Mode
     if ((remote_control.key_code & Key_F) && !(LastKeyCode & Key_F))
     {
         if (Chassis.Mode != Spinning_Mode)
@@ -124,66 +122,48 @@ void Chassis_Set_Mode(void)
     }
 
     if ((remote_control.key_code & Key_V) && !(LastKeyCode & Key_V))
-    {
         Chassis.sentry = 1;
-    }
     if(remote_control.key_code & Key_W)
-    {
         Chassis.sentry = 0;
-    }
 
     if(Chassis.sentry == 1)
-    {
         Chassis.Mode = Spinning_Mode;
-    }
 
     // If motor lost, Silence_Mode
     if ((is_TOE_Error(CHASSIS_MOTOR1_TOE) && is_TOE_Error(CHASSIS_MOTOR2_TOE) && is_TOE_Error(CHASSIS_MOTOR3_TOE) && is_TOE_Error(CHASSIS_MOTOR4_TOE)))
         Chassis.Mode = Silence_Mode;
 
-    /*Set mode by switch*/
+    /*Set mode by switch 重新映射逻辑*/
     if (remote_control.switch_right == Switch_Up)
-        Chassis.Mode = Follow_Mode;
-
-    if (remote_control.switch_right == Switch_Down && LastRightSwitch != Switch_Down)
     {
-        num++;
-        if (num % 3 == 1)
-            Chassis.Mode = Silence_Mode;
-        else if (num % 3 == 0)
+        Chassis.Mode = Follow_Mode;
+    }
+    else if (remote_control.switch_right == Switch_Middle)
+    {
+        Chassis.Mode = Silence_Mode; // 中间急停
+    }
+    else if (remote_control.switch_right == Switch_Down)
+    {
+        // 只有当右下 + 左上的情况下，才进入横移
+        if (remote_control.switch_left == Switch_Up)
         {
-            Chassis.Mode = Spinning_Mode;
-            Chassis.Spinning_direction *= -1;
+            Chassis.Mode = Auto_Traverse_Mode; 
         }
         else
         {
-            Chassis.Mode = Target_Mode;
+            Chassis.Mode = Spinning_Mode;
+            if (LastRightSwitch != Switch_Down)
+            {
+                Chassis.Spinning_direction *= -1; // 每次重新触发小陀螺，改变自转方向
+            }
         }
     }
 
     /*Cap Switch*/
-    if ((remote_control.switch_left == Switch_Up || remote_control.key_code & Key_SHIFT || remote_control.key_code & Key_CTRL) && (Cap.Voltage > CAP_MIN_VOLTAGE))
-    {
+    if ((remote_control.key_code & Key_SHIFT || remote_control.key_code & Key_CTRL) && (Cap.Voltage > CAP_MIN_VOLTAGE))
         Power_Control.Is_Cap_On = TRUE;
-        // Chassis.Fly_Mode = TRUE;
-    }
     else
-    {
         Power_Control.Is_Cap_On = FALSE;
-        // Chassis.Fly_Mode = FALSE;
-    }
-
-    /*Fly_Control*/
-    // if (remote_control.key_code & Key_CTRL)
-    // {
-    //     Chassis.Is_Attitude_Control_On = FALSE;
-    //     Chassis.Fly_Mode = TRUE;
-    // }
-    // else
-    // {
-    //     Chassis.Is_Attitude_Control_On = FALSE;
-    //     Chassis.Fly_Mode = FALSE;
-    // }
 
     /*Refresh*/
     LastKeyCode = remote_control.key_code;
@@ -201,85 +181,106 @@ void Chassis_Get_CtrlValue(void)
 
     static float cap_ratio = 1.0f;
     const float cap_fuck = 0.001f;
-    // If Judge_lost
+    
+    // 如果裁判系统丢失，限制功率
     if (is_TOE_Error(JUDGE_TOE))
     {
         robot_state.chassis_power_limit = 45.0f;
         robot_state.shooter_barrel_cooling_value = 10.0f;
         robot_state.shooter_barrel_heat_limit = 50.0f;
-
         power_heat_data.buffer_energy = 30.0f;
     }
 
-    // When the power_limit is different from real data
-    if (robot_state.chassis_power_limit >= 10240) // max of data_packet
+    if (robot_state.chassis_power_limit >= 10240) 
         robot_state.chassis_power_limit /= 256;
-    // Power max limit
-    if (robot_state.chassis_power_limit > 120) // min of data_packet
+    if (robot_state.chassis_power_limit > 120) 
         robot_state.chassis_power_limit = 120;
-    // Power min limit
     if (robot_state.chassis_power_limit == 0)
         robot_state.chassis_power_limit = 45;
 
-    // Chassis.VelocityRatio = float_constrain(robot_state.chassis_power_limit / 10.0f + 2, 5, 5); // adjust the ratio
-
-    /*Key_code WSAD*/
-    if (remote_control.key_code & Key_A || remote_control.key_code & Key_D)
+    // ----- 注入全自动横移速度 -----
+    if (Chassis.Mode == Auto_Traverse_Mode)
     {
-        if (!(LastKeyCode & Key_A) && (remote_control.key_code & Key_A))
-            Press_Timestamp_A = USER_GetTick();
-        if (remote_control.key_code & Key_A)
+        float auto_speed_ = 400.0f; // 相当于摇杆满额度的设定速度，可微调
+        
+        if (Chassis.traverse_direction_ == 1)
         {
-            if (USER_GetTick() - Press_Timestamp_A > 100)
-                Temp_Vx = -660.0f;
-            else
-                Temp_Vx = -220.0f;
+            Temp_Vx = auto_speed_;
+            if (Chassis.displacement_x_ > Chassis.traverse_target_distance_)
+            {
+                Chassis.traverse_direction_ = -1; // 触达边界，反弹
+            }
         }
-
-        if (!(LastKeyCode & Key_D) && (remote_control.key_code & Key_D))
-            Press_Timestamp_D = USER_GetTick();
-        if (remote_control.key_code & Key_D)
+        else
         {
-            if (USER_GetTick() - Press_Timestamp_D > 100)
-                Temp_Vx = 660.0f;
-            else
-                Temp_Vx = 220.0f;
+            Temp_Vx = -auto_speed_;
+            if (Chassis.displacement_x_ < -Chassis.traverse_target_distance_)
+            {
+                Chassis.traverse_direction_ = 1;
+            }
         }
+        Temp_Vy = 0.0f; // 横向移动，前后不给速度
+        LastKeyCode = remote_control.key_code; 
     }
     else
-        Temp_Vx = 0;
-
-    if (remote_control.key_code & Key_W || remote_control.key_code & Key_S)
     {
-        if (!(LastKeyCode & Key_W) && (remote_control.key_code & Key_W))
-            Press_Timestamp_W = USER_GetTick();
-        if (remote_control.key_code & Key_W)
+        /*Key_code WSAD*/
+        if (remote_control.key_code & Key_A || remote_control.key_code & Key_D)
         {
-            if (USER_GetTick() - Press_Timestamp_W > 100)
-                Temp_Vy = 660.0f;
-            else
-                Temp_Vy = 220.0f;
-        }
+            if (!(LastKeyCode & Key_A) && (remote_control.key_code & Key_A))
+                Press_Timestamp_A = USER_GetTick();
+            if (remote_control.key_code & Key_A)
+            {
+                if (USER_GetTick() - Press_Timestamp_A > 100)
+                    Temp_Vx = -660.0f;
+                else
+                    Temp_Vx = -220.0f;
+            }
 
-        if (!(LastKeyCode & Key_S) && (remote_control.key_code & Key_S))
-            Press_Timestamp_S = USER_GetTick();
-        if (remote_control.key_code & Key_S)
-        {
-            if (USER_GetTick() - Press_Timestamp_S > 100)
-                Temp_Vy = -660.0f;
-            else
-                Temp_Vy = -220.0f;
+            if (!(LastKeyCode & Key_D) && (remote_control.key_code & Key_D))
+                Press_Timestamp_D = USER_GetTick();
+            if (remote_control.key_code & Key_D)
+            {
+                if (USER_GetTick() - Press_Timestamp_D > 100)
+                    Temp_Vx = 660.0f;
+                else
+                    Temp_Vx = 220.0f;
+            }
         }
+        else
+            Temp_Vx = 0;
+
+        if (remote_control.key_code & Key_W || remote_control.key_code & Key_S)
+        {
+            if (!(LastKeyCode & Key_W) && (remote_control.key_code & Key_W))
+                Press_Timestamp_W = USER_GetTick();
+            if (remote_control.key_code & Key_W)
+            {
+                if (USER_GetTick() - Press_Timestamp_W > 100)
+                    Temp_Vy = 660.0f;
+                else
+                    Temp_Vy = 220.0f;
+            }
+
+            if (!(LastKeyCode & Key_S) && (remote_control.key_code & Key_S))
+                Press_Timestamp_S = USER_GetTick();
+            if (remote_control.key_code & Key_S)
+            {
+                if (USER_GetTick() - Press_Timestamp_S > 100)
+                    Temp_Vy = -660.0f;
+                else
+                    Temp_Vy = -220.0f;
+            }
+        }
+        else
+            Temp_Vy = 0;
+
+        LastKeyCode = remote_control.key_code; 
+        
+        Temp_Vx += remote_control.ch3;
+        Temp_Vy += remote_control.ch4;
     }
-    else
-        Temp_Vy = 0;
 
-    LastKeyCode = remote_control.key_code; // Refresh LastKeyCode
-
-    // Get remote_control's data
-    Temp_Vx += remote_control.ch3;
-    Temp_Vy += remote_control.ch4;
-    // Cap_mode
     if (Power_Control.Is_Cap_On == TRUE)
     {
         if (cap_ratio < 1.0f)
@@ -331,83 +332,40 @@ void Chassis_Get_CtrlValue(void)
 
 void Chassis_Set_Control(void)
 {
-    // static int flag = 0;
-    // static int last = 0;
-    // // static int compensate = 0;
     const float lpf_a = 2 * PI * 4 * dt / (1 + 2 * PI * 4 * dt);
     const float lpf_r = 2 * PI * 1000 * dt / (1 + 2 * PI * 1000 * dt);
-    // static float vx = 0, vy = 0, vr = 0;
-    // static float ovx = 0, ovy = 0, ovr = 0;
 
     static float vx = 0, vy = 0, vr = 0;
     static float ovx = 0, ovy = 0; 
 
-    static int8_t wait = 0;
     Chassis.Heading = 0.0f;
 
-    // 检测模式切换，防止刚切入 Follow_Mode 时底盘疯转
+    // 防止刚切入 Follow_Mode 时底盘疯转
     static uint8_t last_mode = Silence_Mode;
     if (Chassis.Mode == Follow_Mode && last_mode != Follow_Mode)
     {
-        // 刚切入 Follow_Mode 时，强制同步目标角为当前真实姿态
         Chassis.Target_Yaw = Chassis.TotalTheta; 
     }
     last_mode = Chassis.Mode;
 
+    // 坐标系反向投影前角准备 (使用包含 Offset 的 FollowTheta)
+    Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
+
+    // ---------------- 世界坐标系里程计更新 ----------------
+    float world_vx_rpm_ = user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ - user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
+    float world_vy_rpm_ = user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ + user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
+    
+    // ( V = RPM * 2πR / 60 )
+    float rpm_to_ms_coef_ = (2.0f * PI * Chassis.WheelRadius) / 60.0f;
+    
+    Chassis.displacement_x_ += world_vx_rpm_ * rpm_to_ms_coef_ * dt;
+    Chassis.displacement_y_ += world_vy_rpm_ * rpm_to_ms_coef_ * dt;
+    // ------------------------------------------------------
+
     switch (Chassis.Mode)
     {
-    // case Follow_Mode:
-    // FOLLOW:
-    //     if (fabsf(Chassis.FollowTheta - Chassis.Heading) > 10.0f)
-    //     {
-    //         PID_Init(&Chassis.RotateFollow, 300, 0, 0, 20, 0, 0.0, 0, 0, 0, 0, 5, Integral_Limit | Derivative_On_Measurement | OutputFilter | DerivativeFilter);
-    //     }
-    //     else if (fabsf(Chassis.FollowTheta - Chassis.Heading) > 2.0f)
-    //     {
-    //         PID_Init(&Chassis.RotateFollow, 300, 0, 0, 3, 0, 0.0, 0, 0, 0, 0, 5, Integral_Limit | Derivative_On_Measurement | OutputFilter | DerivativeFilter);
-    //     }
-    //     // else
-    //     // {
-    //     //     PID_Init(&Chassis.RotateFollow, 10, 10, 0, 0.0, 0.0, 0.00, 0, 0, 0.1, 0.1, 5, Integral_Limit | OutputFilter | DerivativeFilter);
-    //     // }
-    //     Chassis.GravityCenter_Adjustment = GRAVITYCENTER_ADJUSTMENT;
-
-    //     if (Power_Control.Is_Cap_On == TRUE) // Cap_Mode
-    //     {
-    //         Chassis.Vr = PID_Calculate(&Chassis.RotateFollow, Chassis.FollowTheta, Chassis.Heading);
-    //     } // No Feedforward
-    //     else
-    //     {
-    //         Chassis.Vr = PID_Calculate(&Chassis.RotateFollow, Chassis.FollowTheta, Chassis.Heading) + remote_control.ch1 * Chassis.rcStickRotateRatio + remote_control.mouse.x * Chassis.rcMouseRotateRatio;
-    //     }
-
-    //     // Transform Gimbal's angle to Chassis
-    //     if (Chassis.VxTransfer > 50 || Chassis.VyTransfer > 50)
-    //     {
-    //         float temp[2] = {
-    //             user_cos((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vx + user_sin((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vy,
-    //             -user_sin((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vx + user_cos((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vy};
-    //         Chassis.VxTransfer = user_cos((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vx + user_sin((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vy + PID_Calculate(&Chassis.Vx_Compensate, Chassis.Observed_Vx, temp[0]);
-    //         Chassis.VyTransfer = -user_sin((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vx + user_cos((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vy + PID_Calculate(&Chassis.Vy_Compensate, Chassis.Observed_Vy, temp[1]);
-    //     }
-    //     else
-    //     {
-    //         Chassis.VxTransfer = user_cos((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vx + user_sin((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vy;
-    //         Chassis.VyTransfer = -user_sin((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vx + user_cos((Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF) * Chassis.Vy;
-    //     }
-    //     break;
-
-    // case Follow_Mode:
-    //     // 靶车模式：废除所有跟随PID与三角函数投影
-    //     // 遥控器的推杆 (Vx, Vy) 直接映射到底盘的物理 (前后, 左右)
-    //     Chassis.Vr = remote_control.ch1 * Chassis.rcStickRotateRatio; // 保留手动自转
-    //     Chassis.VxTransfer = Chassis.Vx;
-    //     Chassis.VyTransfer = Chassis.Vy;
-
-    //     Chassis.GravityCenter_Adjustment = GRAVITYCENTER_ADJUSTMENT;
-    //     break;
-
     case Follow_Mode:
+    {
         float rc_vr = -remote_control.ch1 * Chassis.rcStickRotateRatio;
         
         if (fabsf(rc_vr) > 5.0f) 
@@ -421,31 +379,11 @@ void Chassis_Set_Control(void)
             // [无输入]：启动闭环 PID 纠偏
             float error = Chassis.Target_Yaw - Chassis.TotalTheta;
             
-            // 处理 -180 到 +180 之间的最短路径过零点问题
             while (error > 180.0f)  error -= 360.0f;
             while (error < -180.0f) error += 360.0f;
             
             Chassis.Vr = PID_Calculate(&Chassis.RotateFollow, 0.0f, error);
-            
         }
-        
-        // float current_yaw_deg = AHRS.Yaw;
-        
-        // /* 2. 锁定初始目标角 (仅在刚切入 Follow_Mode 时执行一次) */
-        // static uint8_t last_mode = Silence_Mode;
-        // if (Chassis.Mode == Follow_Mode && last_mode != Follow_Mode)
-        // {
-        //     Chassis.Target_Yaw = current_yaw_deg; 
-        // }
-        // last_mode = Chassis.Mode;
-
-        // /* 3. 计算跨零点误差 */
-        // float error = Chassis.Target_Yaw - current_yaw_deg;
-        // while (error > 180.0f)  error -= 360.0f;
-        // while (error < -180.0f) error += 360.0f;
-        
-        // /* 4. 纯比例控制闭环 (如果底盘发生正反馈疯转，将 -error 改为 error) */
-        // Chassis.Vr = PID_Calculate(&Chassis.RotateFollow, 0.0f, error);
         
         // 限幅保护
         if (Chassis.Vr > 350) Chassis.Vr = 350;
@@ -455,7 +393,7 @@ void Chassis_Set_Control(void)
         Chassis.VyTransfer = Chassis.Vy;
         Chassis.GravityCenter_Adjustment = GRAVITYCENTER_ADJUSTMENT;
         break;
-
+    }
     case Silence_Mode:
         Chassis.Vr = 0;
         Chassis.VxTransfer = 0;
@@ -466,22 +404,13 @@ void Chassis_Set_Control(void)
             Chassis.Mode = Follow_Mode;
         break;
 
-        case Spinning_Mode:
+    case Auto_Traverse_Mode:
+    case Spinning_Mode:
         {  
-            // srand(t);
-            // static float rand_amp;
-            // rand_amp = rand() % 25 + 100;
-
-            // if (Power_Control.Is_Cap_On == TRUE)
-            //     Chassis.Vr = (int16_t)(CAP_SPINNING_B + rand_amp * user_sin(fabsf(CAP_SPINNING_OMEGA * user_cos(rand_amp)) * t));
-            // else
-            //     Chassis.Vr = (int16_t)(SPINNING_B + rand_amp * user_sin(fabsf(SPINNING_OMEGA * user_cos(rand_amp)) * t));
-
             static uint32_t spin_update_count = 0;
             static float target_rand_amp = 112.0f; 
             static float smooth_rand_amp = 112.0f; 
     
-            // 500ms
             if (spin_update_count++ % 250 == 0)
             {
                 target_rand_amp = rand() % 25 + 100;
@@ -503,17 +432,14 @@ void Chassis_Set_Control(void)
             }
             Chassis.Vr *= Chassis.Spinning_direction;
     
-            // 坐标系反向投影 
-            Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
-    
             float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx + 
                                     user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
                                     
             float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx + 
                                         user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
     
-            Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, Chassis.Observed_Vx, target_vx_trans);
-            Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, Chassis.Observed_Vy, target_vy_trans);
+            Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, chassis_fusion.filtered_vx_, target_vx_trans);
+            Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, chassis_fusion.filtered_vy_, target_vy_trans);
     
             Chassis.VxTransfer *= 0.5f;
             Chassis.VyTransfer *= 0.5f;
@@ -522,10 +448,8 @@ void Chassis_Set_Control(void)
             break;
         }
     }
-    // if (is_TOE_Error(GIMBAL_YAW_MOTOR_TOE)) // If Gimbal Yaw lost, Control Chassis
-    //     Chassis.Vr = remote_control.ch1 * Chassis.rcStickRotateRatio + remote_control.mouse.x * Chassis.rcMouseRotateRatio;
 
-    if (Chassis.Is_Attitude_Control_On == TRUE) // Flying slope
+    if (Chassis.Is_Attitude_Control_On == TRUE) 
     {
         Chassis.Attitude_adjustment[0] = 1.2;
         Chassis.Attitude_adjustment[1] = 1.2;
@@ -540,30 +464,26 @@ void Chassis_Set_Control(void)
         Chassis.Attitude_adjustment[3] = 1;
     }
 
-    if (!(Chassis.Mode == Spinning_Mode))
+    if (!(Chassis.Mode == Spinning_Mode || Chassis.Mode == Auto_Traverse_Mode))
     {
         Chassis.VxTransfer = lpf_a * Chassis.VxTransfer + (1 - lpf_a) * vx;
         Chassis.VyTransfer = lpf_a * Chassis.VyTransfer + (1 - lpf_a) * vy;
     }
 
-    // Chassis.Observed_Vx = (Chassis.ChassisMotor[FR].Velocity_RPM - Chassis.ChassisMotor[FL].Velocity_RPM - Chassis.ChassisMotor[HL].Velocity_RPM + Chassis.ChassisMotor[HR].Velocity_RPM) * Chassis.WheelReductionRatio * 0.5;
-    // Chassis.Observed_Vy = (Chassis.ChassisMotor[FR].Velocity_RPM + Chassis.ChassisMotor[FL].Velocity_RPM - Chassis.ChassisMotor[HL].Velocity_RPM - Chassis.ChassisMotor[HR].Velocity_RPM) * Chassis.WheelReductionRatio * 0.5;
-
-    /*Inverse Kinematics - Aligned with Rotated Coordinates*/
+    /*Inverse Kinematics*/
     Chassis.Observed_Vx = (Chassis.ChassisMotor[FR].Velocity_RPM + Chassis.ChassisMotor[FL].Velocity_RPM - Chassis.ChassisMotor[HL].Velocity_RPM - Chassis.ChassisMotor[HR].Velocity_RPM) * Chassis.WheelReductionRatio * 0.5;
     Chassis.Observed_Vy = -(Chassis.ChassisMotor[FR].Velocity_RPM - Chassis.ChassisMotor[FL].Velocity_RPM - Chassis.ChassisMotor[HL].Velocity_RPM + Chassis.ChassisMotor[HR].Velocity_RPM) * Chassis.WheelReductionRatio * 0.5;
 
-    Chassis.Observed_Vx = lpf_a * Chassis.Observed_Vx + (1 - lpf_a) * ovx;
-    Chassis.Observed_Vy = lpf_a * Chassis.Observed_Vy + (1 - lpf_a) * ovy;
+    updateChassisFusion(&chassis_fusion, Chassis.Observed_Vx, Chassis.Observed_Vy, 
+        AHRS.Accel[0], AHRS.Accel[1], AHRS.Gyro[2], dt);
+
     if (Chassis.Mode != Target_Mode)
     {
         Chassis.Vr = lpf_r * Chassis.Vr + (1 - lpf_r) * vr;
     }
     float assign_ratio = 0;
-    // float average_motor_current = 0;
-    // average_motor_current = (fabs(Chassis.ChassisMotor[0].Current) + fabs(Chassis.ChassisMotor[1].Current) + fabs(Chassis.ChassisMotor[2].Current) + fabs(Chassis.ChassisMotor[3].Current)) / 4;
 
-    if (Chassis.Mode == Spinning_Mode || Chassis.Mode == Target_Mode)
+    if (Chassis.Mode == Spinning_Mode || Chassis.Mode == Target_Mode || Chassis.Mode == Auto_Traverse_Mode)
     {
         assign_ratio = 12;
         Chassis.VelocityRatio = VELOCITY_RATIO * 0.8f;
@@ -575,28 +495,6 @@ void Chassis_Set_Control(void)
         {
             Chassis.VelocityRatio = VELOCITY_RATIO * 0.866;
         }
-        // else if (Gimbal_Date.is_slope == 1)
-        // {
-
-        //     if (average_motor_current > 5.3)
-        //     {
-        //         Chassis.VelocityRatio = VELOCITY_RATIO * 3;
-        //         assign_ratio = 3;
-        //         Chassis.Upslope_state = 0;
-        //     }
-        //     else if (average_motor_current > 4 && average_motor_current < 5)
-        //     {
-        //         Chassis.VelocityRatio = VELOCITY_RATIO * 2;
-        //         assign_ratio = 3;
-        //         Chassis.Upslope_state = 1;
-        //     }
-        //     else
-        //     {
-        //         Chassis.VelocityRatio = VELOCITY_RATIO * 0.8;
-        //         assign_ratio = 8;
-        //         Chassis.Upslope_state = 2;
-        //     }
-        // }
         else
         {
             Chassis.VelocityRatio = VELOCITY_RATIO;
@@ -606,13 +504,8 @@ void Chassis_Set_Control(void)
             Chassis.VelocityRatio = VELOCITY_RATIO * 2;
         }
     }
-    /*Calculation*/
-    // Chassis.V1 = -(-Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[0] + assign_ratio * Chassis.Vr;
-    // Chassis.V2 = -(Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[1] + assign_ratio * Chassis.Vr;
-    // Chassis.V3 = -(Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[2] + assign_ratio * Chassis.Vr;
-    // Chassis.V4 = -(-Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[3] + assign_ratio * Chassis.Vr;
-
-    // /*Calculation - Coordinate Rotated by -90 degrees*/
+    
+    /*Calculation - Coordinate Rotated by -90 degrees*/
     Chassis.V1 = -( Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[0] + assign_ratio * Chassis.Vr;
     Chassis.V2 = -( Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[1] + assign_ratio * Chassis.Vr;
     Chassis.V3 = -(-Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[2] + assign_ratio * Chassis.Vr;
@@ -621,7 +514,7 @@ void Chassis_Set_Control(void)
     // Adjust Gimbal's Gracity_Center
     Chassis.V3 *= Chassis.GravityCenter_Adjustment;
     Chassis.V4 *= Chassis.GravityCenter_Adjustment;
-    // last = remote_control.switch_right;
+    
     Velocity_MAXLimit();
 
     // Motor speed calculation
@@ -652,7 +545,6 @@ void Chassis_Set_Control(void)
 
 void Send_Chassis_Current(void)
 {
-    /*Send Judgement's data to Cap*/
     static uint8_t count = 0;
     if (count % 10 == 0)
     {
@@ -661,14 +553,6 @@ void Send_Chassis_Current(void)
     }
     count++;
 
-    /*Send Chassis current to motors*/
-    // If RC and VTM lost, stop the robot
-
-    // if (is_TOE_Error(RC_TOE) && is_TOE_Error(VTM_TOE))
-    // {
-    //     if (Send_Motor_Current_1_4(&hcan1, 0, 0, 0, 0) == HAL_OK)
-    //         HAL_IWDG_Refresh(&hiwdg);
-    // }
     if (is_TOE_Error(RC_TOE))
     {
         if (Send_Motor_Current_1_4(&hcan1, 0, 0, 0, 0) == HAL_OK)
@@ -681,161 +565,7 @@ void Send_Chassis_Current(void)
     }
 }
 
-// void Find_heading_4heads(void)
-// {
-//     // Search the direction of Gimbal
-//     if (Chassis.Heading < 0.01f)
-//     {
-//         if ((Chassis.Mode != Silence_Mode) && ((Chassis.Theta > 45 + Chassis.Heading) && (Chassis.Theta < 135 + Chassis.Heading)))
-//         {
-//             Chassis.HeadingFlag = 1;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if (((Chassis.Mode != Silence_Mode) && (fabsf(Chassis.Theta) > 135) && (Chassis.Heading == 0)) || ((Chassis.Mode != Silence_Mode) && (Chassis.Heading != 0) && (Chassis.Theta < -135 + Chassis.Heading)))
-//         {
-
-//             Chassis.HeadingFlag = 2;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta > -135 + Chassis.Heading) && (Chassis.Theta < -45 + Chassis.Heading))
-//         {
-
-//             Chassis.HeadingFlag = 1;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta < 45 + Chassis.Heading) && (Chassis.Theta > -45 + Chassis.Heading))
-//         {
-//             Chassis.HeadingFlag = 0;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//     }
-//     else
-//     {
-//         if ((Chassis.Mode != Silence_Mode) && ((Chassis.Theta > 45 + Chassis.Heading) && (Chassis.Theta < 135 + Chassis.Heading)))
-//         {
-//             Chassis.HeadingFlag = -1;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta < -135 + Chassis.Heading))
-//         {
-
-//             Chassis.HeadingFlag = 2;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta > -135 + Chassis.Heading) && (Chassis.Theta < -45 + Chassis.Heading))
-//         {
-
-//             Chassis.HeadingFlag = 1;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta < 45 + Chassis.Heading) && (Chassis.Theta > -45 + Chassis.Heading))
-//         {
-//             Chassis.HeadingFlag = 0;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//     }
-// }
-
-// void Find_heading_2heads_H(void)
-// {
-//     // Search the direction of Gimbal
-//     if (Chassis.Heading < 0.01f)
-//     {
-//         if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta < 90 + Chassis.Heading) && (Chassis.Theta > -90 + Chassis.Heading))
-//         {
-//             Chassis.HeadingFlag = 0;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//         else if (((Chassis.Mode != Silence_Mode) && (fabsf(Chassis.Theta) > 90) && (Chassis.Heading == 0)) /*|| ((Chassis.Mode != Silence_Mode) && (Chassis.Heading != 0) && (Chassis.Theta < -90+ Chassis.Heading))*/)
-//         {
-
-//             Chassis.HeadingFlag = 2;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//     }
-//     else
-//     {
-//         if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta < 90 + Chassis.Heading) && (Chassis.Theta > -90 + Chassis.Heading))
-//         {
-//             Chassis.HeadingFlag = 0;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-
-//         else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta < -90 + Chassis.Heading))
-//         {
-
-//             Chassis.HeadingFlag = 2;
-
-//             Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//                                                  -180, 180);
-//         }
-//     }
-// }
-
-// void Find_heading_2heads_L(void)
-// {
-//     // Search the direction of Gimbal
-//     // if (Chassis.Heading < 0.01f)
-//     // {
-//     //     if ((Chassis.Mode != Silence_Mode) && ((Chassis.Theta > 0 + Chassis.Heading) && (Chassis.Theta < 180 + Chassis.Heading)))
-//     //     {
-//     //         Chassis.HeadingFlag = -1;
-
-//     //         Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//     //                                              -180, 180);
-//     //     }
-//     //     else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta > -180 + Chassis.Heading) && (Chassis.Theta < 0 + Chassis.Heading))
-//     //     {
-
-//     //         Chassis.HeadingFlag = 1;
-
-//     //         Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//     //                                              -180, 180);
-//     //     }
-//     // }
-//     // else
-//     // {
-//     //     if ((Chassis.Mode != Silence_Mode) && ((Chassis.Theta > 0 + Chassis.Heading) && (Chassis.Theta < 180 + Chassis.Heading)))
-//     //     {
-//     //         Chassis.HeadingFlag = -1;
-
-//     //         Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//     //                                              -180, 180);
-//     //     }
-//     //     else if ((Chassis.Mode != Silence_Mode) && (Chassis.Theta > -180 + Chassis.Heading) && (Chassis.Theta < 0 + Chassis.Heading))
-//     //     {
-
-//     //         Chassis.HeadingFlag = 1;
-
-//     //         Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE),
-//     //                                              -180, 180);
-//     //     }
-//     // }
-//     Chassis.HeadingFlag = 1;
-//     Chassis.Theta = loop_float_constrain((Chassis.Theta + Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE), -180, 180);
-// }
+// ... 注释掉的 Find_heading 等原有函数保持原样，在此省略 ... 
 
 float Max_4(float num1, float num2, float num3, float num4)
 {

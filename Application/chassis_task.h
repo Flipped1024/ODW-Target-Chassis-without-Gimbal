@@ -18,7 +18,7 @@
 #define Ky 0.25f
 #define VELOCITY_RATIO 6 // Spinning mode's velocity ratio
 // #define MAX_RPM 12000
-#define MAX_RPM 5000
+#define MAX_RPM 3000
 
 /*Math calculation*/
 #define user_cos arm_cos_f32
@@ -106,6 +106,18 @@ typedef struct _chassis_t
   };
 
   PID_t RotateFollow;
+
+  // float displacement_x_; 
+  // float displacement_y_;
+  // float traverse_target_distance_; 
+  // int8_t traverse_direction_;
+
+  float yaw_offset_; 
+
+  float displacement_x_; 
+  float displacement_y_;
+  float traverse_target_distance_; 
+  int8_t traverse_direction_;
 } Chassis_t;
 extern Chassis_t Chassis;
 
@@ -116,6 +128,7 @@ enum
   Spinning_Mode,   // 小陀螺
   Silence_Mode,    // 静止模式
   Target_Mode,
+  Auto_Traverse_Mode,
 };
 
 /*Declaration of Chassis functions*/
