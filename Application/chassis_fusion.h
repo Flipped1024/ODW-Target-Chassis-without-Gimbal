@@ -7,8 +7,8 @@
 #define IMU_OFFSET_X -0.022f  // 旋转中心前方为正
 #define IMU_OFFSET_Y -0.128f  // 旋转中心左方为正
 
-#define KF_PROCESS_NOISE 0.5f // 加速度计
-#define KF_MEASURE_NOISE 3.0f // 里程计
+#define KF_PROCESS_NOISE 1.0f // 加速度计
+#define KF_MEASURE_NOISE 5.0f // 里程计
 
 typedef struct {
     KalmanFilter_t kf_;
