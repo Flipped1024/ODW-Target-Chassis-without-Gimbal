@@ -51,7 +51,7 @@ void Chassis_Init(void)
     PID_Init(&Chassis.Vy_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vr_Compensate, 50, 0, 0, 2.0, 0.0, 0.0, 0, 0, 0.3, 0.3, 0, OutputFilter | DerivativeFilter);
 
-    PID_Init(&Chassis.RotateFollow, 350, 0, 0, 10.0f, 0.0f, 0.5f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);    //航向PID
+    PID_Init(&Chassis.RotateFollow, 350, 0, 0, 10.0f, 0.0f, 0.5f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
 
     /*Power control init*/
     Chassis.Spinning_direction = 1;
@@ -61,20 +61,19 @@ void Chassis_Init(void)
     initChassisFusion(&chassis_fusion);
 
     /* 重置参数初始化 */
-    Chassis.yaw_offset_ = 0.0f; // 初始化软偏置为0
+    Chassis.yaw_offset_ = 0.0f; 
     Chassis.TotalTheta = 0;
     Chassis.Theta = 0;
 
-    /* 自动模式里程计与参数初始化 */
+    //Auto
     Chassis.displacement_x_ = 0.0f;
     Chassis.displacement_y_ = 0.0f;
-    Chassis.traverse_target_distance_ = 1.5f; // 目标单侧横移 1.5 米 (可根据实际场地修改)
-    Chassis.traverse_direction_ = 1;          // 初始向右
+    Chassis.traverse_target_distance_ = 1.5f; 
+    Chassis.traverse_direction_ = 1;          
 }
 
 void Chassis_Get_Theta(void)
 {
-    // 扣除偏航角软件偏置，实现无感重置车头
     float temp_yaw_ = AHRS.Yaw - Chassis.yaw_offset_;
     
     // 约束到 -180 ~ +180
@@ -92,16 +91,13 @@ void Chassis_Set_Mode(void)
     static uint16_t LastKeyCode = 0;
     static uint16_t LastRightSwitch = 0;
 
-    // --- 核心修改：利用左拨杆瞬间重置车头正前方 ---
     static uint8_t last_left_switch_ = 0;
     if (remote_control.switch_left == Switch_Down && last_left_switch_ != Switch_Down)
     {
-        // 将当前底盘真实姿态定义为新的0度
         Chassis.yaw_offset_ = AHRS.Yaw; 
-        // 强制同步目标角，防止底盘突转
+
         Chassis.Target_Yaw = 0.0f;      
         
-        // 清除里程计
         Chassis.displacement_x_ = 0.0f;
         Chassis.displacement_y_ = 0.0f;
     }
@@ -133,30 +129,29 @@ void Chassis_Set_Mode(void)
     if ((is_TOE_Error(CHASSIS_MOTOR1_TOE) && is_TOE_Error(CHASSIS_MOTOR2_TOE) && is_TOE_Error(CHASSIS_MOTOR3_TOE) && is_TOE_Error(CHASSIS_MOTOR4_TOE)))
         Chassis.Mode = Silence_Mode;
 
-    /*Set mode by switch 重新映射逻辑*/
+    /*Set mode by switch */
     if (remote_control.switch_right == Switch_Up)
     {
         Chassis.Mode = Follow_Mode;
     }
     else if (remote_control.switch_right == Switch_Middle)
     {
-        Chassis.Mode = Silence_Mode; // 中间急停
+        Chassis.Mode = Silence_Mode; 
     }
     else if (remote_control.switch_right == Switch_Down)
     {
-        // 只有当右下 + 左上的情况下，才进入横移
-        if (remote_control.switch_left == Switch_Up)
-        {
-            Chassis.Mode = Auto_Traverse_Mode; 
-        }
-        else
-        {
+        // if (remote_control.switch_left == Switch_Up)
+        // {
+        //     Chassis.Mode = Auto_Traverse_Mode; 
+        // }
+        // else
+        // {
             Chassis.Mode = Spinning_Mode;
             if (LastRightSwitch != Switch_Down)
             {
-                Chassis.Spinning_direction *= -1; // 每次重新触发小陀螺，改变自转方向
+                Chassis.Spinning_direction *= -1;
             }
-        }
+        // }
     }
 
     /*Cap Switch*/
@@ -198,30 +193,29 @@ void Chassis_Get_CtrlValue(void)
     if (robot_state.chassis_power_limit == 0)
         robot_state.chassis_power_limit = 45;
 
-    // ----- 注入全自动横移速度 -----
-    if (Chassis.Mode == Auto_Traverse_Mode)
-    {
-        float auto_speed_ = 400.0f; // 相当于摇杆满额度的设定速度，可微调
+    // if (Chassis.Mode == Auto_Traverse_Mode)
+    // {
+    //     float auto_speed_ = 400.0f; // 相当于摇杆满额度的设定速度，可微调
         
-        if (Chassis.traverse_direction_ == 1)
-        {
-            Temp_Vx = auto_speed_;
-            if (Chassis.displacement_x_ > Chassis.traverse_target_distance_)
-            {
-                Chassis.traverse_direction_ = -1; // 触达边界，反弹
-            }
-        }
-        else
-        {
-            Temp_Vx = -auto_speed_;
-            if (Chassis.displacement_x_ < -Chassis.traverse_target_distance_)
-            {
-                Chassis.traverse_direction_ = 1;
-            }
-        }
-        Temp_Vy = 0.0f; // 横向移动，前后不给速度
-        LastKeyCode = remote_control.key_code; 
-    }
+    //     if (Chassis.traverse_direction_ == 1)
+    //     {
+    //         Temp_Vx = auto_speed_;
+    //         if (Chassis.displacement_x_ > Chassis.traverse_target_distance_)
+    //         {
+    //             Chassis.traverse_direction_ = -1; // 触达边界，反弹
+    //         }
+    //     }
+    //     else
+    //     {
+    //         Temp_Vx = -auto_speed_;
+    //         if (Chassis.displacement_x_ < -Chassis.traverse_target_distance_)
+    //         {
+    //             Chassis.traverse_direction_ = 1;
+    //         }
+    //     }
+    //     Temp_Vy = 0.0f; // 横向移动，前后不给速度
+    //     LastKeyCode = remote_control.key_code; 
+    // }
     else
     {
         /*Key_code WSAD*/
@@ -340,7 +334,6 @@ void Chassis_Set_Control(void)
 
     Chassis.Heading = 0.0f;
 
-    // 防止刚切入 Follow_Mode 时底盘疯转
     static uint8_t last_mode = Silence_Mode;
     if (Chassis.Mode == Follow_Mode && last_mode != Follow_Mode)
     {
@@ -348,10 +341,9 @@ void Chassis_Set_Control(void)
     }
     last_mode = Chassis.Mode;
 
-    // 坐标系反向投影前角准备 (使用包含 Offset 的 FollowTheta)
+    // 坐标系反向投影前角
     Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
 
-    // ---------------- 世界坐标系里程计更新 ----------------
     float world_vx_rpm_ = user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ - user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
     float world_vy_rpm_ = user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ + user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
     
@@ -360,7 +352,6 @@ void Chassis_Set_Control(void)
     
     Chassis.displacement_x_ += world_vx_rpm_ * rpm_to_ms_coef_ * dt;
     Chassis.displacement_y_ += world_vy_rpm_ * rpm_to_ms_coef_ * dt;
-    // ------------------------------------------------------
 
     switch (Chassis.Mode)
     {
@@ -370,13 +361,11 @@ void Chassis_Set_Control(void)
         
         if (fabsf(rc_vr) > 5.0f) 
         {
-            // [有输入]：开环响应摇杆输入，并持续刷新目标角
             Chassis.Vr = rc_vr;
             Chassis.Target_Yaw = Chassis.TotalTheta; 
         }
         else 
         {
-            // [无输入]：启动闭环 PID 纠偏
             float error = Chassis.Target_Yaw - Chassis.TotalTheta;
             
             while (error > 180.0f)  error -= 360.0f;
@@ -404,7 +393,7 @@ void Chassis_Set_Control(void)
             Chassis.Mode = Follow_Mode;
         break;
 
-    case Auto_Traverse_Mode:
+    // case Auto_Traverse_Mode:
     case Spinning_Mode:
         {  
             static uint32_t spin_update_count = 0;
@@ -464,7 +453,7 @@ void Chassis_Set_Control(void)
         Chassis.Attitude_adjustment[3] = 1;
     }
 
-    if (!(Chassis.Mode == Spinning_Mode || Chassis.Mode == Auto_Traverse_Mode))
+    if (!(Chassis.Mode == Spinning_Mode))
     {
         Chassis.VxTransfer = lpf_a * Chassis.VxTransfer + (1 - lpf_a) * vx;
         Chassis.VyTransfer = lpf_a * Chassis.VyTransfer + (1 - lpf_a) * vy;
@@ -483,7 +472,7 @@ void Chassis_Set_Control(void)
     }
     float assign_ratio = 0;
 
-    if (Chassis.Mode == Spinning_Mode || Chassis.Mode == Target_Mode || Chassis.Mode == Auto_Traverse_Mode)
+    if (Chassis.Mode == Spinning_Mode || Chassis.Mode == Target_Mode)
     {
         assign_ratio = 12;
         Chassis.VelocityRatio = VELOCITY_RATIO * 0.8f;
@@ -564,8 +553,6 @@ void Send_Chassis_Current(void)
             HAL_IWDG_Refresh(&hiwdg);
     }
 }
-
-// ... 注释掉的 Find_heading 等原有函数保持原样，在此省略 ... 
 
 float Max_4(float num1, float num2, float num3, float num4)
 {

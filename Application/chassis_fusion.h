@@ -3,13 +3,12 @@
 
 #include "kalman_filter.h"
 
-/* 杆臂参数配置 (单位：米) */
-#define IMU_OFFSET_X -0.022f  // C板在旋转中心前方为正
-#define IMU_OFFSET_Y -0.128f  // C板在旋转中心左方为正
+/* 单位：米*/
+#define IMU_OFFSET_X -0.022f  // 旋转中心前方为正
+#define IMU_OFFSET_Y -0.128f  // 旋转中心左方为正
 
-/* 滤波信任度参数 */
-#define KF_PROCESS_NOISE 0.5f // 加速度计噪声
-#define KF_MEASURE_NOISE 3.0f // 里程计噪声
+#define KF_PROCESS_NOISE 0.5f // 加速度计
+#define KF_MEASURE_NOISE 3.0f // 里程计
 
 typedef struct {
     KalmanFilter_t kf_;
