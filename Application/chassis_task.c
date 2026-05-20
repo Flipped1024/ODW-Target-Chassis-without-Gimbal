@@ -130,6 +130,7 @@ void Chassis_Set_Mode(void)
         Chassis.Mode = Silence_Mode;
 
     /*Set mode by switch */
+    /*Set mode by switch */
     if (remote_control.switch_right == Switch_Up)
     {
         Chassis.Mode = Follow_Mode;
@@ -140,18 +141,19 @@ void Chassis_Set_Mode(void)
     }
     else if (remote_control.switch_right == Switch_Down)
     {
-        // if (remote_control.switch_left == Switch_Up)
-        // {
-        //     Chassis.Mode = Auto_Traverse_Mode; 
-        // }
-        // else
-        // {
+        if (LastRightSwitch != Switch_Down)
+        {
+            Chassis.Spinning_direction *= -1;
+        }
+
+        if (remote_control.switch_left == Switch_Up)
+        {
+            Chassis.Mode = Var_Spinning_Mode; 
+        }
+        else
+        {
             Chassis.Mode = Spinning_Mode;
-            if (LastRightSwitch != Switch_Down)
-            {
-                Chassis.Spinning_direction *= -1;
-            }
-        // }
+        }
     }
 
     /*Cap Switch*/
@@ -193,8 +195,8 @@ void Chassis_Get_CtrlValue(void)
     if (robot_state.chassis_power_limit == 0)
         robot_state.chassis_power_limit = 45;
 
-    if (Chassis.Mode == Auto_Traverse_Mode)
-    {
+    // if (Chassis.Mode == Auto_Traverse_Mode)
+    // {
         // float auto_speed_ = 400.0f; // 相当于摇杆满额度的设定速度，可微调
         
         // if (Chassis.traverse_direction_ == 1)
@@ -216,9 +218,9 @@ void Chassis_Get_CtrlValue(void)
         // Temp_Vy = 0.0f; // 横向移动，前后不给速度
         // LastKeyCode = remote_control.key_code; 
         
-    }
-    else
-    {
+    // }
+    // else
+    // {
         /*Key_code WSAD*/
         if (remote_control.key_code & Key_A || remote_control.key_code & Key_D)
         {
@@ -274,7 +276,7 @@ void Chassis_Get_CtrlValue(void)
         
         Temp_Vx += remote_control.ch3;
         Temp_Vy += remote_control.ch4;
-    }
+    // }
 
     if (Power_Control.Is_Cap_On == TRUE)
     {
@@ -394,25 +396,51 @@ void Chassis_Set_Control(void)
             Chassis.Mode = Follow_Mode;
         break;
 
-    // case Auto_Traverse_Mode:
-    case Spinning_Mode:
+        case Var_Spinning_Mode:
+        {
+            static uint32_t spin_update_count = 0;
+            static float target_rand_amp = 112.0f; 
+            static float smooth_rand_amp = 112.0f; 
+    
+            if (spin_update_count++ % 250 == 0)
+            {
+                target_rand_amp = rand() % 25 + 100;
+            }
+    
+            smooth_rand_amp += (target_rand_amp - smooth_rand_amp) * 0.05f;
+    
+            if (Power_Control.Is_Cap_On == TRUE)
+                Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
+            else
+                Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
+
+            if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) || 
+                (remote_control.key_code & Key_S) || (remote_control.key_code & Key_D) ||
+                (remote_control.ch1 != 0) || (remote_control.ch2 != 0) || 
+                (remote_control.ch3 != 0) || (remote_control.ch4 != 0))
+            {
+                Chassis.Vr = SPINNING_SPEED;
+            }
+            Chassis.Vr *= Chassis.Spinning_direction;
+    
+            float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx + 
+                                    user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
+                                    
+            float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx + 
+                                        user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
+    
+            Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, chassis_fusion.filtered_vx_, target_vx_trans);
+            Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, chassis_fusion.filtered_vy_, target_vy_trans);
+    
+            Chassis.VxTransfer *= 0.5f;
+            Chassis.VyTransfer *= 0.5f;
+    
+            Chassis.GravityCenter_Adjustment = 1.0f;
+            break;
+        }
+    
+        case Spinning_Mode:
         {  
-            // static uint32_t spin_update_count = 0;
-            // static float target_rand_amp = 112.0f; 
-            // static float smooth_rand_amp = 112.0f; 
-    
-            // if (spin_update_count++ % 250 == 0)
-            // {
-            //     target_rand_amp = rand() % 25 + 100;
-            // }
-
-            // smooth_rand_amp += (target_rand_amp - smooth_rand_amp) * 0.05f;
-    
-            // if (Power_Control.Is_Cap_On == TRUE)
-            //     Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
-            // else
-            //     Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
-
             Chassis.Vr = SPINNING_B;
     
             if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) || 

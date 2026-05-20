@@ -128,7 +128,7 @@ enum
   Spinning_Mode,   // 小陀螺
   Silence_Mode,    // 静止模式
   Target_Mode,
-  Auto_Traverse_Mode,
+  Var_Spinning_Mode,
 };
 
 /*Declaration of Chassis functions*/
