@@ -484,11 +484,12 @@ void Chassis_Set_Control(void)
         Chassis.Attitude_adjustment[3] = 1;
     }
 
-    if (!(Chassis.Mode == Spinning_Mode))
+    if (!(Chassis.Mode == Spinning_Mode || Chassis.Mode == Var_Spinning_Mode))
     {
         Chassis.VxTransfer = lpf_a * Chassis.VxTransfer + (1 - lpf_a) * vx;
         Chassis.VyTransfer = lpf_a * Chassis.VyTransfer + (1 - lpf_a) * vy;
     }
+
 
     /*Inverse Kinematics*/
     Chassis.Observed_Vx = (Chassis.ChassisMotor[FR].Velocity_RPM + Chassis.ChassisMotor[FL].Velocity_RPM - Chassis.ChassisMotor[HL].Velocity_RPM - Chassis.ChassisMotor[HR].Velocity_RPM) * Chassis.WheelReductionRatio * 0.5;
@@ -503,7 +504,8 @@ void Chassis_Set_Control(void)
     }
     float assign_ratio = 0;
 
-    if (Chassis.Mode == Spinning_Mode || Chassis.Mode == Target_Mode)
+
+    if (Chassis.Mode == Spinning_Mode || Chassis.Mode == Var_Spinning_Mode || Chassis.Mode == Target_Mode)
     {
         assign_ratio = 12;
         Chassis.VelocityRatio = VELOCITY_RATIO * 0.8f;
