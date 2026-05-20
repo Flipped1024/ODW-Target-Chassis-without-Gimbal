@@ -58,10 +58,28 @@ void Callback_RC_Handle(RC_Type *rc, uint8_t *buff)
     rc->ch1 -= RC_CH_VALUE_OFFSET;
     rc->ch2 = (buff[1] >> 3 | buff[2] << 5) & 0x07FF;
     rc->ch2 -= RC_CH_VALUE_OFFSET;
+
     rc->ch3 = (buff[2] >> 6 | buff[3] << 2 | buff[4] << 10) & 0x07FF;
     rc->ch3 -= RC_CH_VALUE_OFFSET;
+
+    if (rc->ch3 > 100) {
+        rc->ch3 -= 100;
+    } else if (rc->ch3 < -100) {
+        rc->ch3 += 100;
+    } else {
+        rc->ch3 = 0;
+    }
+
     rc->ch4 = (buff[4] >> 1 | buff[5] << 7) & 0x07FF;
     rc->ch4 -= RC_CH_VALUE_OFFSET;
+
+    if (rc->ch4 > 100) {
+        rc->ch4 -= 100;
+    } else if (rc->ch4 < -100) {
+        rc->ch4 += 100;
+    } else {
+        rc->ch4 = 0;
+    }
 
     rc->switch_left = ((buff[5] >> 4) & 0x000C) >> 2;
     rc->switch_right = (buff[5] >> 4) & 0x0003;
