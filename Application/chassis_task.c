@@ -397,23 +397,23 @@ void Chassis_Set_Control(void)
     // case Auto_Traverse_Mode:
     case Spinning_Mode:
         {  
-            static uint32_t spin_update_count = 0;
-            static float target_rand_amp = 112.0f; 
-            static float smooth_rand_amp = 112.0f; 
+            // static uint32_t spin_update_count = 0;
+            // static float target_rand_amp = 112.0f; 
+            // static float smooth_rand_amp = 112.0f; 
     
-            if (spin_update_count++ % 250 == 0)
-            {
-                target_rand_amp = rand() % 25 + 100;
-            }
+            // if (spin_update_count++ % 250 == 0)
+            // {
+            //     target_rand_amp = rand() % 25 + 100;
+            // }
 
-            smooth_rand_amp += (target_rand_amp - smooth_rand_amp) * 0.05f;
+            // smooth_rand_amp += (target_rand_amp - smooth_rand_amp) * 0.05f;
     
-            if (Power_Control.Is_Cap_On == TRUE)
-                Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
-            else
-                Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
+            // if (Power_Control.Is_Cap_On == TRUE)
+            //     Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
+            // else
+            //     Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
 
-            // Chassis.Vr = SPINNING_B;
+            Chassis.Vr = SPINNING_B;
     
             if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) || 
                 (remote_control.key_code & Key_S) || (remote_control.key_code & Key_D) ||
