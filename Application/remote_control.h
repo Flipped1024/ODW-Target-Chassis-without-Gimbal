@@ -53,6 +53,7 @@ typedef struct
     int16_t ch2;
     int16_t ch3;
     int16_t ch4;
+    int16_t wheel; // [修改] 新增左侧拨轮数据
 
     uint8_t switch_left; // 3 value
     uint8_t switch_right;
@@ -70,7 +71,7 @@ typedef struct
     uint16_t key_code;
     /**********************************************************************************
      * 15   14   13   12   11   10   9   8   7   6     5     4   3   2   1
-     *  V    C    X	   Z    G    F   R   E   Q  CTRL  SHIFT  D   A   S   W
+     * V    C    X    Z    G    F   R   E   Q  CTRL  SHIFT  D   A   S   W
      ************************************************************************************/
 
     uint8_t RC_state;
@@ -95,7 +96,7 @@ enum
 extern RC_Type remote_control;
 
 extern uint8_t sbus_rx_buf[SBUS_RX_BUF_NUM];
-extern uint8_t RC_Data_Buffer[16];
+extern uint8_t RC_Data_Buffer[RC_FRAME_LENGTH]; // [修改] 缓存数组大小由 16 改为 18 (RC_FRAME_LENGTH)
 extern uint8_t RC_Update;
 
 extern uint64_t Latest_Remote_Control_Pack_Time;

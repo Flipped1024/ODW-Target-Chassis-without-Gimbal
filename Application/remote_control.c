@@ -21,7 +21,7 @@ RC_Type remote_control = {0};
 
 uint8_t sbus_rx_buf[SBUS_RX_BUF_NUM];
 
-uint8_t RC_Data_Buffer[16] = {0};
+uint8_t RC_Data_Buffer[RC_FRAME_LENGTH] = {0}; // [修改] 数组大小由 16 改为 18 (RC_FRAME_LENGTH)
 
 uint32_t RC_DWT_Count = 0;
 float RC_dt = 0;
@@ -30,16 +30,16 @@ uint8_t RC_Update = 0;
 void Remote_Control_Init(UART_HandleTypeDef *huart)
 {
     remote_control.RC_USART = huart;
-    // ?����������?��?�� �����?
+    // ??? ?
     // HAL_UART_Receive_DMA(huart, sbus_rx_buf, RC_FRAME_LENGTH);
     USART_IDLE_Init(huart, sbus_rx_buf, SBUS_RX_BUF_NUM);
 }
 
 /**
- * @Func		void Callback_RC_Handle(RC_Type* rc, uint8_t* buff)
- * @Brief  	DR16���?�?�������� ���DT7��?�������?����?�
- * @Param		RC_Type* rc���??�������???�?��uint8_t* buff�����?���?���
- * @Retval		None
+ * @Func        void Callback_RC_Handle(RC_Type* rc, uint8_t* buff)
+ * @Brief       DR16?? DT7???
+ * @Param       RC_Type* rc??????uint8_t* buff??
+ * @Retval      None
  * @Date
  */
 void Callback_RC_Handle(RC_Type *rc, uint8_t *buff)
@@ -48,7 +48,8 @@ void Callback_RC_Handle(RC_Type *rc, uint8_t *buff)
     {
         return;
     }
-    memcpy(RC_Data_Buffer, buff, 16);
+    // [修改] 内存拷贝长度由 16 改为 18，确保读到最后的拨轮数据
+    memcpy(RC_Data_Buffer, buff, RC_FRAME_LENGTH); 
 
     rc->UpdateTick = RC_Get_Timeline();
 
@@ -93,12 +94,18 @@ void Callback_RC_Handle(RC_Type *rc, uint8_t *buff)
 
     rc->key_code = buff[14] | buff[15] << 8; // key borad code
 
+    // [新增] 解析第 16、17 字节的左侧拨轮数据。因为是无回弹拨轮，直接映射，不添加零区死区检测。
+    rc->wheel = (buff[16] | (buff[17] << 8)) & 0x07FF;
+    rc->wheel -= RC_CH_VALUE_OFFSET;
+
     if (rc->switch_left != 1 && rc->switch_left != 2 && rc->switch_left != 3)
     {
         rc->ch1 = 0;
         rc->ch2 = 0;
         rc->ch3 = 0;
         rc->ch4 = 0;
+        rc->wheel = 0; // [新增] 数据异常时清零拨轮
+        
         rc->switch_left = 0;
         rc->switch_right = 0;
 
@@ -139,7 +146,7 @@ void Solve_RC_Data_Error(void)
 
 uint8_t RC_Data_is_Error(void)
 {
-    //?����go to��� �������??����?�����������?���
+    //?go to ????
     if (abs(remote_control.ch1) > 1000)
     {
         goto error;
@@ -156,11 +163,15 @@ uint8_t RC_Data_is_Error(void)
     {
         goto error;
     }
-    if (remote_control.switch_left == 0)
+    if (abs(remote_control.wheel) > 1000) // [新增] 检查拨轮数值是否发生严重越界
     {
         goto error;
     }
     if (remote_control.switch_left == 0)
+    {
+        goto error;
+    }
+    if (remote_control.switch_right == 0) // [修改] 修复了原代码中存在两句 switch_left == 0 的逻辑错误
     {
         goto error;
     }
@@ -171,16 +182,13 @@ error:
     remote_control.ch2 = 0;
     remote_control.ch3 = 0;
     remote_control.ch4 = 0;
+    remote_control.wheel = 0; // [新增] 数据错位时清零拨轮
 
     remote_control.mouse.x = 0;
     remote_control.mouse.y = 0;
     remote_control.mouse.z = 0;
     remote_control.switch_left = 0;
     remote_control.switch_right = 0;
-
-    remote_control.mouse.x = 0; // x axis
-    remote_control.mouse.y = 0;
-    remote_control.mouse.z = 0;
 
     remote_control.mouse.press_left = 0; // is pressed?
     remote_control.mouse.press_right = 0;
