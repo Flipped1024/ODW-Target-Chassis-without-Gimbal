@@ -51,7 +51,7 @@ void Chassis_Init(void)
     PID_Init(&Chassis.Vy_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vr_Compensate, 50, 0, 0, 2.0, 0.0, 0.0, 0, 0, 0.3, 0.3, 0, OutputFilter | DerivativeFilter);
 
-    PID_Init(&Chassis.RotateFollow, 350, 0, 0, 15.0f, 0.0f, 0.5f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.RotateFollow, 350, 0, 0.0f, 10.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
 
     /*Power control init*/
     Chassis.Spinning_direction = 1;
@@ -70,6 +70,9 @@ void Chassis_Init(void)
     Chassis.displacement_y_ = 0.0f;
     Chassis.traverse_target_distance_ = 1.5f;
     Chassis.traverse_direction_ = 1;
+
+    Chassis.target_spinning_rads_ = DEFAULT_SPINNING_RADS;
+    Chassis.wheel_up_start_time_ = 0;
 }
 
 void Chassis_Get_Theta(void)
@@ -206,7 +209,7 @@ void Chassis_Get_CtrlValue(void)
     //     Temp_Vx = auto_speed_;
     //     if (Chassis.displacement_x_ > Chassis.traverse_target_distance_)
     //     {
-    
+
     //         Chassis.traverse_direction_ = -1; // 触达边界，反弹
     //     }
     // }
@@ -328,6 +331,46 @@ void Chassis_Get_CtrlValue(void)
         tempVal = (Temp_Vy - Chassis.Vy) / (0.01f + dt);
         Chassis.Vy += tempVal * dt;
     }
+
+    static uint8_t last_wheel_up_state = 0;
+    static uint8_t last_wheel_down_state = 0;
+
+    uint8_t current_wheel_up_state = (remote_control.wheel > 100);
+    uint8_t current_wheel_down_state = (remote_control.wheel < -100);
+
+
+    if (current_wheel_up_state)
+    {
+        if (!last_wheel_up_state) 
+        {
+            
+            Chassis.target_spinning_rads_ += 1.0f;         // 速度 +1 rad/s
+        }
+
+    }
+
+    if (current_wheel_down_state)
+    {
+        if (!last_wheel_down_state) 
+        {
+            Chassis.wheel_up_start_time_ = USER_GetTick(); // 记录起始时间
+            Chassis.target_spinning_rads_ -= 1.0f;         // 速度 -1 rad/s
+            if (Chassis.target_spinning_rads_ < 0.0f)      // 严防反转或负溢出
+            {
+                Chassis.target_spinning_rads_ = 0.0f;
+            }
+        }
+        else // 保持拨动状态
+        {
+            if (USER_GetTick() - Chassis.wheel_up_start_time_ > 1000) // 保持超过1秒
+            {
+                Chassis.target_spinning_rads_ = DEFAULT_SPINNING_RADS; // 重置回默认速度
+            }
+        }
+    }
+
+    last_wheel_up_state = current_wheel_up_state;
+    last_wheel_down_state = current_wheel_down_state;
 }
 
 void Chassis_Set_Control(void)
@@ -448,15 +491,8 @@ void Chassis_Set_Control(void)
 
     case Spinning_Mode:
     {
-        Chassis.Vr = SPINNING_B;
+        Chassis.Vr = (int16_t)(Chassis.target_spinning_rads_ * RADS_TO_VR_COEF);
 
-        if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) ||
-            (remote_control.key_code & Key_S) || (remote_control.key_code & Key_D) ||
-            (remote_control.ch1 != 0) || (remote_control.ch2 != 0) ||
-            (remote_control.ch3 != 0) || (remote_control.ch4 != 0))
-        {
-            Chassis.Vr = SPINNING_SPEED;
-        }
         Chassis.Vr *= Chassis.Spinning_direction;
 
         float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx +

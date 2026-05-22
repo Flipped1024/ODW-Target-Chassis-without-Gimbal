@@ -17,8 +17,8 @@
 #define Kx 0.25f
 #define Ky 0.25f
 #define VELOCITY_RATIO 6 // Spinning mode's velocity ratio
-// #define MAX_RPM 12000
-#define MAX_RPM 5000
+#define MAX_RPM 12000
+// #define MAX_RPM 5000
 
 /*Math calculation*/
 #define user_cos arm_cos_f32
@@ -30,6 +30,8 @@
 #define SPINNING_B 200
 #define CAP_SPINNING_OMEGA 20
 #define CAP_SPINNING_B 400
+#define DEFAULT_SPINNING_RADS 3.0f
+#define RADS_TO_VR_COEF 50.0f
 
 /*Two heads or Four heads*/
 #define NUM_OF_HEAD 2 // 2 or 4
@@ -118,6 +120,9 @@ typedef struct _chassis_t
   float displacement_y_;
   float traverse_target_distance_; 
   int8_t traverse_direction_;
+
+  float target_spinning_rads_;
+  uint32_t wheel_up_start_time_;  
 } Chassis_t;
 extern Chassis_t Chassis;
 
