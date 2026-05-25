@@ -100,6 +100,7 @@ Bsp/bsp_PWM.c\
 Bsp/bsp_usart_idle.c\
 Bsp/bsp_adc.c\
 Bsp/bsp_i2c.c\
+Bsp/bsp_buzzer.c\
 Components/Algorithm/GravityEstimateKF.c\
 Components/Algorithm/QuaternionAHRS.c\
 Components/Algorithm/QuaternionEKF.c\
