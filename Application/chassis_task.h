@@ -21,6 +21,12 @@
 // #define MAX_RPM 5000
 #define CHASSIS_DELAY_COMP_SEC -0.03f  
 
+/* 滑移抑制常数 (SCREAMING_SNAKE_CASE) */
+#define FORCE_RATIO          5.0f    // 力控增益系数
+#define TORQUE_RATIO         10.0f   // 偏航力矩增益
+#define SLIP_RPM_THRESHOLD   150.0f  // 悬空/打滑判定阈值 (RPM)
+#define SLIP_DAMPING_KP      25.0f   // 滑移抑制强阻尼系数
+
 /*Math calculation*/
 #define user_cos arm_cos_f32
 #define user_sin arm_sin_f32
@@ -125,6 +131,10 @@ typedef struct _chassis_t
 
   float target_spinning_rads_;
   uint32_t wheel_up_start_time_;  
+
+  PID_t ForceX_PID;
+  PID_t ForceY_PID;
+  PID_t TorqueZ_PID;
 } Chassis_t;
 extern Chassis_t Chassis;
 
