@@ -42,20 +42,20 @@ void Chassis_Init(void)
         Chassis.Attitude_adjustment[i] = 1.0f;
 
     /* PID Init */
-    PID_Init(&Chassis.ForceX_PID, 16384, 16384, 0, 10.0f, 0.5f, 0.0f, 2000, 100, 0, 0, 0, Integral_Limit | OutputFilter);
-    PID_Init(&Chassis.ForceY_PID, 16384, 16384, 0, 10.0f, 0.5f, 0.0f, 2000, 100, 0, 0, 0, Integral_Limit | OutputFilter);
-    PID_Init(&Chassis.TorqueZ_PID, 16384, 16384, 0, 15.0f, 0.0f, 2.0f, 2000, 100, 0, 0, 0, OutputFilter);
+    PID_Init(&Chassis.ForceX_PID, 16384, 16384, 0, 0.0f, 0.0f, 0.0f, 2000, 100, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.ForceY_PID, 16384, 16384, 0, 0.0f, 0.0f, 0.0f, 2000, 100, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.TorqueZ_PID, 16384, 16384, 0, 0.0f, 0.0f,0.0f, 2000, 100, 0, 0, 0, OutputFilter);
 
     for (uint8_t i = 0; i < 4; i++)
     {
-        PID_Init(&Chassis.ChassisMotor[i].PID_Velocity, 16384, 16384, 0, 5, 0, 0, 500, 100, 0.001, 0, 1, OutputFilter);
+        PID_Init(&Chassis.ChassisMotor[i].PID_Velocity, 16384, 16384, 10.0f, 0.5 , 0, 0, 500, 100, 0.001, 0, 1, OutputFilter);
         Chassis.ChassisMotor[i].Max_Out = 16384;
     }
     PID_Init(&Chassis.Vx_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vy_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vr_Compensate, 50, 0, 0, 2.0, 0.0, 0.0, 0, 0, 0.3, 0.3, 0, OutputFilter | DerivativeFilter);
 
-    PID_Init(&Chassis.RotateFollow, 350, 0, 0.0f, 10.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.RotateFollow, 350, 0, 5.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
 
     /*Power control init*/
     Chassis.Spinning_direction = 1;

@@ -22,10 +22,10 @@
 #define CHASSIS_DELAY_COMP_SEC -0.03f  
 
 /* 滑移抑制常数 (SCREAMING_SNAKE_CASE) */
-#define FORCE_RATIO          5.0f    // 力控增益系数
-#define TORQUE_RATIO         10.0f   // 偏航力矩增益
+#define FORCE_RATIO          1000.0f    // 力控增益系数
+#define TORQUE_RATIO         100.0f   // 偏航力矩增益
 #define SLIP_RPM_THRESHOLD   150.0f  // 悬空/打滑判定阈值 (RPM)
-#define SLIP_DAMPING_KP      25.0f   // 滑移抑制强阻尼系数
+#define SLIP_DAMPING_KP      10.0f   // 滑移抑制强阻尼系数  
 
 /*Math calculation*/
 #define user_cos arm_cos_f32
