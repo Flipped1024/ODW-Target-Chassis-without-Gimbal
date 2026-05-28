@@ -7,7 +7,7 @@
 #define IMU_OFFSET_X 0.0f  // 旋转中心前方为正
 #define IMU_OFFSET_Y 0.0f  // 旋转中心左方为正
 
-#define KF_PROCESS_NOISE 5.0f // 加速度计
+#define KF_PROCESS_NOISE 0.5f // 加速度计
 #define KF_MEASURE_NOISE 10.0f // 里程计
 
 typedef struct {

@@ -19,6 +19,7 @@
 #define VELOCITY_RATIO 6 // Spinning mode's velocity ratio
 #define MAX_RPM 12000
 // #define MAX_RPM 5000
+#define CHASSIS_DELAY_COMP_SEC -0.03f  
 
 /*Math calculation*/
 #define user_cos arm_cos_f32
@@ -78,8 +79,9 @@ typedef struct _chassis_t
   float FollowTheta;
 
   float Target_Yaw;
-  
+
   float DeflectionAngle;
+  float PredictDeflectionAngle;
 
   float cap_energy;
   float energy_percentage;

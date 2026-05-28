@@ -338,20 +338,18 @@ void Chassis_Get_CtrlValue(void)
     uint8_t current_wheel_up_state = (remote_control.wheel > 100);
     uint8_t current_wheel_down_state = (remote_control.wheel < -100);
 
-
     if (current_wheel_up_state)
     {
-        if (!last_wheel_up_state) 
+        if (!last_wheel_up_state)
         {
-            
-            Chassis.target_spinning_rads_ += 1.0f;         // 速度 +1 rad/s
-        }
 
+            Chassis.target_spinning_rads_ += 1.0f; // 速度 +1 rad/s
+        }
     }
 
     if (current_wheel_down_state)
     {
-        if (!last_wheel_down_state) 
+        if (!last_wheel_down_state)
         {
             Chassis.wheel_up_start_time_ = USER_GetTick(); // 记录起始时间
             Chassis.target_spinning_rads_ -= 1.0f;         // 速度 -1 rad/s
@@ -392,6 +390,9 @@ void Chassis_Set_Control(void)
 
     // 坐标系反向投影前角
     Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
+
+    // 延迟补偿预测角
+    Chassis.PredictDeflectionAngle = Chassis.DeflectionAngle + (AHRS.Gyro[2] * CHASSIS_DELAY_COMP_SEC);
 
     float world_vx_rpm_ = user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ - user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
     float world_vy_rpm_ = user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ + user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
@@ -473,11 +474,11 @@ void Chassis_Set_Control(void)
         }
         Chassis.Vr *= Chassis.Spinning_direction;
 
-        float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vx_trans = user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
-        float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vy_trans = -user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
         Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, chassis_fusion.filtered_vx_, target_vx_trans);
         Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, chassis_fusion.filtered_vy_, target_vy_trans);
@@ -495,11 +496,11 @@ void Chassis_Set_Control(void)
 
         Chassis.Vr *= Chassis.Spinning_direction;
 
-        float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vx_trans = user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
-        float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vy_trans = -user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
         Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, chassis_fusion.filtered_vx_, target_vx_trans);
         Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, chassis_fusion.filtered_vy_, target_vy_trans);
