@@ -42,16 +42,20 @@ void Chassis_Init(void)
         Chassis.Attitude_adjustment[i] = 1.0f;
 
     /* PID Init */
+    PID_Init(&Chassis.ForceX_PID, 16384, 16384, 0, 0.0f, 0.0f, 0.0f, 2000, 100, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.ForceY_PID, 16384, 16384, 0, 0.0f, 0.0f, 0.0f, 2000, 100, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.TorqueZ_PID, 16384, 16384, 0, 0.0f, 0.0f, 0.0f, 2000, 100, 0, 0, 0, OutputFilter);
+
     for (uint8_t i = 0; i < 4; i++)
     {
-        PID_Init(&Chassis.ChassisMotor[i].PID_Velocity, 16384, 16384, 0, 15, 60, 0, 500, 100, 0.001, 0, 1, Integral_Limit | OutputFilter);
+        PID_Init(&Chassis.ChassisMotor[i].PID_Velocity, 16384, 16384, 10.0f, 0.5, 0, 0, 500, 100, 0.001, 0, 1, OutputFilter);
         Chassis.ChassisMotor[i].Max_Out = 16384;
     }
     PID_Init(&Chassis.Vx_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vy_Compensate, 100, 0, 0, 1.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
     PID_Init(&Chassis.Vr_Compensate, 50, 0, 0, 2.0, 0.0, 0.0, 0, 0, 0.3, 0.3, 0, OutputFilter | DerivativeFilter);
 
-    PID_Init(&Chassis.RotateFollow, 350, 0, 0.0f, 10.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
+    PID_Init(&Chassis.RotateFollow, 350, 0, 5.0f, 0.0f, 0.0f, 0.0f, 0, 0, 0, 0, 0, Integral_Limit | OutputFilter);
 
     /*Power control init*/
     Chassis.Spinning_direction = 1;
@@ -380,6 +384,9 @@ void Chassis_Set_Control(void)
     // 坐标系反向投影前角
     Chassis.DeflectionAngle = (Chassis.FollowTheta - Chassis.HeadingFlag * YAW_REDUCTION_CORRECTION_ANGLE) / RADIAN_COEF;
 
+    // 延迟补偿预测角
+    Chassis.PredictDeflectionAngle = Chassis.DeflectionAngle + (AHRS.Gyro[2] * CHASSIS_DELAY_COMP_SEC);
+
     float world_vx_rpm_ = user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ - user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
     float world_vy_rpm_ = user_sin(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vx_ + user_cos(-Chassis.DeflectionAngle) * chassis_fusion.filtered_vy_;
 
@@ -460,11 +467,11 @@ void Chassis_Set_Control(void)
         }
         Chassis.Vr *= Chassis.Spinning_direction;
 
-        float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vx_trans = user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
-        float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vy_trans = -user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
         Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, chassis_fusion.filtered_vx_, target_vx_trans);
         Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, chassis_fusion.filtered_vy_, target_vy_trans);
@@ -482,11 +489,11 @@ void Chassis_Set_Control(void)
 
         Chassis.Vr *= Chassis.Spinning_direction;
 
-        float target_vx_trans = user_cos(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_sin(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vx_trans = user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
-        float target_vy_trans = -user_sin(Chassis.DeflectionAngle) * Chassis.Vx +
-                                user_cos(Chassis.DeflectionAngle) * Chassis.Vy;
+        float target_vy_trans = -user_sin(Chassis.PredictDeflectionAngle) * Chassis.Vx +
+                                user_cos(Chassis.PredictDeflectionAngle) * Chassis.Vy;
 
         Chassis.VxTransfer = target_vx_trans + PID_Calculate(&Chassis.Vx_Compensate, chassis_fusion.filtered_vx_, target_vx_trans);
         Chassis.VyTransfer = target_vy_trans + PID_Calculate(&Chassis.Vy_Compensate, chassis_fusion.filtered_vy_, target_vy_trans);
@@ -555,7 +562,6 @@ void Chassis_Set_Control(void)
         // }
     }
 
-    /*Calculation - Coordinate Rotated by -90 degrees*/
     Chassis.V1 = -(Chassis.VxTransfer - Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[0] + assign_ratio * Chassis.Vr;
     Chassis.V2 = -(Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[1] + assign_ratio * Chassis.Vr;
     Chassis.V3 = -(-Chassis.VxTransfer + Chassis.VyTransfer) * Chassis.VelocityRatio * Chassis.Attitude_adjustment[2] + assign_ratio * Chassis.Vr;
@@ -567,30 +573,43 @@ void Chassis_Set_Control(void)
 
     Velocity_MAXLimit();
 
-    // Motor speed calculation
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[0], Chassis.ChassisMotor[0].Velocity_RPM, Chassis.V1);
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[1], Chassis.ChassisMotor[1].Velocity_RPM, Chassis.V2);
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[2], Chassis.ChassisMotor[2].Velocity_RPM, Chassis.V3);
-    Motor_Speed_Calculate(&Chassis.ChassisMotor[3], Chassis.ChassisMotor[3].Velocity_RPM, Chassis.V4);
+    float force_x = PID_Calculate(&Chassis.ForceX_PID, chassis_fusion.filtered_vx_, Chassis.VxTransfer);
+    float force_y = PID_Calculate(&Chassis.ForceY_PID, chassis_fusion.filtered_vy_, Chassis.VyTransfer);
+    float torque_z = PID_Calculate(&Chassis.TorqueZ_PID, AHRS.Gyro[2], Chassis.Vr);
 
-    /*Power Control*/
-    // Chassis_Power_Cal();
-    // if (Power_Control.Is_Cap_Used == TRUE)
-    // {
-    //     if (Chassis.Fly_Mode == TRUE)
-    //         Chassis_Power_Control_Fly();
-    //     else
-    //         Chassis_Power_Control();
-    // }
-    // else if (Power_Control.Is_Cap_Used == FALSE)
-    //     Chassis_Power_Control_Without_Cap();
+    float ff_current[4];
+    ff_current[0] = -(force_x - force_y) * FORCE_RATIO + torque_z * TORQUE_RATIO;
+    ff_current[1] = -(force_x + force_y) * FORCE_RATIO + torque_z * TORQUE_RATIO;
+    ff_current[2] = -(-force_x + force_y) * FORCE_RATIO + torque_z * TORQUE_RATIO;
+    ff_current[3] = -(-force_x - force_y) * FORCE_RATIO + torque_z * TORQUE_RATIO;
+
+    float target_v_array[4] = {Chassis.V1, Chassis.V2, Chassis.V3, Chassis.V4};
+
+    for (uint8_t i = 0; i < 4; i++)
+    {
+        float slip_error = Chassis.ChassisMotor[i].Velocity_RPM - target_v_array[i];
+
+        float damping_current = 0.0f;
+        if (fabsf(slip_error) > SLIP_RPM_THRESHOLD)
+        {
+            damping_current = -SLIP_DAMPING_KP * slip_error;
+        }
+
+        float vel_pid_current = PID_Calculate(&Chassis.ChassisMotor[i].PID_Velocity, Chassis.ChassisMotor[i].Velocity_RPM, target_v_array[i]);
+
+        Chassis.ChassisMotor[i].Output = ff_current[i] + vel_pid_current + damping_current;
+
+        if (Chassis.ChassisMotor[i].Output > Chassis.ChassisMotor[i].Max_Out)
+            Chassis.ChassisMotor[i].Output = Chassis.ChassisMotor[i].Max_Out;
+        else if (Chassis.ChassisMotor[i].Output < -Chassis.ChassisMotor[i].Max_Out)
+            Chassis.ChassisMotor[i].Output = -Chassis.ChassisMotor[i].Max_Out;
+    }
 
     vx = Chassis.VxTransfer;
     vy = Chassis.VyTransfer;
     vr = Chassis.Vr;
     ovx = Chassis.Observed_Vx;
     ovy = Chassis.Observed_Vy;
-    // Cap_unused_correct();
 }
 
 void Send_Chassis_Current(void)
