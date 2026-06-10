@@ -86,13 +86,10 @@ Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c \
 Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c  \
 Application/judgement_info.c\
 Application/motor.c\
-Application/SerialDebug.c\
 Application/detect_task.c\
 Application/ins_task.c\
 Application/remote_control.c\
 Application/chassis_task.c\
-Application/power_control.c\
-Application/cap.c\
 Application/chassis_fusion.c\
 Bsp/bsp_CAN.c\
 Bsp/bsp_dwt.c\

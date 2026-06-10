@@ -48,11 +48,6 @@
 #include "QuaternionAHRS.h"
 #include "judgement_info.h"
 #include "remote_control.h"
-#include "SerialDebug.h"
-// #include "VTM_info.h"
-// #include "ui_task.h"
-#include "power_control.h"
-#include "cap.h"
 
 #include "chassis_fusion.h"
 

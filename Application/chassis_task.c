@@ -55,8 +55,8 @@ void Chassis_Init(void)
 
     /*Power control init*/
     Chassis.Spinning_direction = 1;
-    Power_Control.Is_Cap_On = FALSE;
-    Power_Control.Is_Cap_Used = TRUE;
+    // Power_Control.Is_Cap_On = FALSE;
+    // Power_Control.Is_Cap_Used = TRUE;
 
     initChassisFusion(&chassis_fusion);
 
@@ -162,10 +162,10 @@ void Chassis_Set_Mode(void)
     }
 
     /*Cap Switch*/
-    if ((remote_control.key_code & Key_SHIFT || remote_control.key_code & Key_CTRL) && (Cap.Voltage > CAP_MIN_VOLTAGE))
-        Power_Control.Is_Cap_On = TRUE;
-    else
-        Power_Control.Is_Cap_On = FALSE;
+    // if ((remote_control.key_code & Key_SHIFT || remote_control.key_code & Key_CTRL) && (Cap.Voltage > CAP_MIN_VOLTAGE))
+    //     Power_Control.Is_Cap_On = TRUE;
+    // else
+    //     Power_Control.Is_Cap_On = FALSE;
 
     /*Refresh*/
     LastKeyCode = remote_control.key_code;
@@ -284,20 +284,9 @@ void Chassis_Get_CtrlValue(void)
     Temp_Vy += remote_control.ch4;
     // }
 
-    if (Power_Control.Is_Cap_On == TRUE)
-    {
-        if (cap_ratio < 1.0f)
-            cap_ratio += cap_fuck;
-        else
-            cap_ratio = 1.0f;
-        Temp_Vx *= (cap_ratio * 1.5f);
-        Temp_Vy *= (cap_ratio * 1.5f);
-    }
-    else
-    {
-        cap_ratio = 0.0f;
-        Temp_Vy = 1.5 * Temp_Vy;
-    }
+    cap_ratio = 0.0f;
+    Temp_Vy = 1.5 * Temp_Vy;
+
     if (fabsf(Temp_Vx) > 1e-3f)
     {
         if (Chassis.Vx * Temp_Vx < 0)
@@ -338,20 +327,18 @@ void Chassis_Get_CtrlValue(void)
     uint8_t current_wheel_up_state = (remote_control.wheel > 100);
     uint8_t current_wheel_down_state = (remote_control.wheel < -100);
 
-
     if (current_wheel_up_state)
     {
-        if (!last_wheel_up_state) 
+        if (!last_wheel_up_state)
         {
-            
-            Chassis.target_spinning_rads_ += 1.0f;         // 速度 +1 rad/s
-        }
 
+            Chassis.target_spinning_rads_ += 1.0f; // 速度 +1 rad/s
+        }
     }
 
     if (current_wheel_down_state)
     {
-        if (!last_wheel_down_state) 
+        if (!last_wheel_down_state)
         {
             Chassis.wheel_up_start_time_ = USER_GetTick(); // 记录起始时间
             Chassis.target_spinning_rads_ -= 1.0f;         // 速度 -1 rad/s
@@ -459,10 +446,10 @@ void Chassis_Set_Control(void)
 
         smooth_rand_amp += (target_rand_amp - smooth_rand_amp) * 0.05f;
 
-        if (Power_Control.Is_Cap_On == TRUE)
-            Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
-        else
-            Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
+        // if (Power_Control.Is_Cap_On == TRUE)
+        //     Chassis.Vr = (int16_t)(CAP_SPINNING_B + smooth_rand_amp * user_sin(CAP_SPINNING_OMEGA * t));
+        // else
+        Chassis.Vr = (int16_t)(SPINNING_B + smooth_rand_amp * user_sin(SPINNING_OMEGA * t));
 
         if ((remote_control.key_code & Key_W) || (remote_control.key_code & Key_A) ||
             (remote_control.key_code & Key_S) || (remote_control.key_code & Key_D) ||
@@ -562,10 +549,10 @@ void Chassis_Set_Control(void)
         {
             Chassis.VelocityRatio = VELOCITY_RATIO;
         }
-        if (Power_Control.Is_Cap_On == TRUE)
-        {
-            Chassis.VelocityRatio = VELOCITY_RATIO * 2;
-        }
+        // if (Power_Control.Is_Cap_On == TRUE)
+        // {
+        //     Chassis.VelocityRatio = VELOCITY_RATIO * 2;
+        // }
     }
 
     /*Calculation - Coordinate Rotated by -90 degrees*/
@@ -587,23 +574,23 @@ void Chassis_Set_Control(void)
     Motor_Speed_Calculate(&Chassis.ChassisMotor[3], Chassis.ChassisMotor[3].Velocity_RPM, Chassis.V4);
 
     /*Power Control*/
-    Chassis_Power_Cal();
-    if (Power_Control.Is_Cap_Used == TRUE)
-    {
-        if (Chassis.Fly_Mode == TRUE)
-            Chassis_Power_Control_Fly();
-        else
-            Chassis_Power_Control();
-    }
-    else if (Power_Control.Is_Cap_Used == FALSE)
-        Chassis_Power_Control_Without_Cap();
+    // Chassis_Power_Cal();
+    // if (Power_Control.Is_Cap_Used == TRUE)
+    // {
+    //     if (Chassis.Fly_Mode == TRUE)
+    //         Chassis_Power_Control_Fly();
+    //     else
+    //         Chassis_Power_Control();
+    // }
+    // else if (Power_Control.Is_Cap_Used == FALSE)
+    //     Chassis_Power_Control_Without_Cap();
 
     vx = Chassis.VxTransfer;
     vy = Chassis.VyTransfer;
     vr = Chassis.Vr;
     ovx = Chassis.Observed_Vx;
     ovy = Chassis.Observed_Vy;
-    Cap_unused_correct();
+    // Cap_unused_correct();
 }
 
 void Send_Chassis_Current(void)

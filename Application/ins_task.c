@@ -162,23 +162,23 @@ void INS_Task(void)
 
             Get_EulerAngle(AHRS.q);
 
-            if (GlobalDebugMode == INS_DEBUG)
-            {
-                if (ins_debug_mode == 0)
-                    Serial_Debug(&huart1, 1, AHRS.Yaw, AHRS.Pitch, AHRS.Roll, 0, 0, 0);
-                if (ins_debug_mode == 1)
-                    Serial_Debug(&huart1, 1, gVec[0], gVec[1], gVec[2], AHRS.Accel[X], AHRS.Accel[Y], AHRS.Accel[Z]);
-                if (ins_debug_mode == 2)
-                    Serial_Debug(&huart1, 1, atan2f(gVec[0], gVec[2]) * RADIAN_COEF, atan2f(gVec[1], gVec[2]) * RADIAN_COEF, atan2f(AHRS.Accel[X], AHRS.Accel[Z]) * RADIAN_COEF, atan2f(AHRS.Accel[Y], AHRS.Accel[Z]) * RADIAN_COEF, 0, 0);
-            }
+            // if (GlobalDebugMode == INS_DEBUG)
+            // {
+            //     if (ins_debug_mode == 0)
+            //         Serial_Debug(&huart1, 1, AHRS.Yaw, AHRS.Pitch, AHRS.Roll, 0, 0, 0);
+            //     if (ins_debug_mode == 1)
+            //         Serial_Debug(&huart1, 1, gVec[0], gVec[1], gVec[2], AHRS.Accel[X], AHRS.Accel[Y], AHRS.Accel[Z]);
+            //     if (ins_debug_mode == 2)
+            //         Serial_Debug(&huart1, 1, atan2f(gVec[0], gVec[2]) * RADIAN_COEF, atan2f(gVec[1], gVec[2]) * RADIAN_COEF, atan2f(AHRS.Accel[X], AHRS.Accel[Z]) * RADIAN_COEF, atan2f(AHRS.Accel[Y], AHRS.Accel[Z]) * RADIAN_COEF, 0, 0);
+            // }
         }
     }
 
     if ((count % 2) == 0)
     {
         IMU_Temperature_Ctrl();
-        if (GlobalDebugMode == IMU_HEAT_DEBUG)
-            Serial_Debug(&huart1, 1, RefTemp, BMI088.Temperature, TempCtrl.Output / 1000.0f, TempCtrl.Pout / 1000.0f, TempCtrl.Iout / 1000.0f, TempCtrl.Dout / 1000.0f);
+        // if (GlobalDebugMode == IMU_HEAT_DEBUG)
+        //     Serial_Debug(&huart1, 1, RefTemp, BMI088.Temperature, TempCtrl.Output / 1000.0f, TempCtrl.Pout / 1000.0f, TempCtrl.Iout / 1000.0f, TempCtrl.Dout / 1000.0f);
     }
 
     count++;
