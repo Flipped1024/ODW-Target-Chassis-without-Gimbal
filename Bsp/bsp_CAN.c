@@ -52,7 +52,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *_hcan)
     uint8_t rx_data[8];
     static uint8_t RC_Data_Buf[16];
     static uint8_t Gimbal_Date_Buf[8];
-    static int16_t CAP_vol;
+    // static int16_t CAP_vol;
 
     HAL_CAN_GetRxMessage(_hcan, CAN_RX_FIFO0, &rx_header, rx_data);
 
@@ -121,14 +121,14 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *_hcan)
             //     Callback_RC_Handle(&remote_control, RC_Data_Buf);
             //     break;
 
-            case CAN_CAP_INFO_ID:
-                CAP_vol = rx_data[0];
-                Cap.Voltage = (float)CAP_vol / 5.0f;
-                Cap.Power_Chassis = (float)((rx_data[1] << 8 | rx_data[2]) / 10.0f);
-                Cap.Power_In = (float)((rx_data[3] << 8 | rx_data[4]) / 10.0f);
-                Cap.Cap_Normol_Chassis_Flag = rx_data[5];
-                Detect_Hook(CAP_TOE);
-                break;
+            // case CAN_CAP_INFO_ID:
+            //     CAP_vol = rx_data[0];
+            //     Cap.Voltage = (float)CAP_vol / 5.0f;
+            //     Cap.Power_Chassis = (float)((rx_data[1] << 8 | rx_data[2]) / 10.0f);
+            //     Cap.Power_In = (float)((rx_data[3] << 8 | rx_data[4]) / 10.0f);
+            //     Cap.Cap_Normol_Chassis_Flag = rx_data[5];
+            //     Detect_Hook(CAP_TOE);
+            //     break;
             }
         }
     }
